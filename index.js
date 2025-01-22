@@ -1,42 +1,4 @@
-// const express = require("express");
-// const fs = require("fs");
-// const path = require("path");
-// const bodyParser = require("body-parser");
-
-// const app = express();
 const PORT = 3000;
-
-// // Middleware to parse JSON data in requests
-// app.use(bodyParser.json());
-
-// // Define the path to the text file
-// const filePath = path.join(__dirname, "data", "sample.txt");
-
-// // GET API: Read file content
-// app.get("/read-file", (req, res) => {
-//   fs.readFile(filePath, "utf8", (err, data) => {
-//     if (err) {
-//       return res.status(500).json({ error: "Error reading the file" });
-//     }
-//     res.json({ content: data });
-//   });
-// });
-
-// // POST API: Write data to file
-// app.post("/write-file", (req, res) => {
-//   const { content } = req.body;
-
-//   if (!content) {
-//     return res.status(400).json({ error: "Content is required" });
-//   }
-
-//   fs.writeFile(filePath, content, "utf8", (err) => {
-//     if (err) {
-//       return res.status(500).json({ error: "Error writing to the file" });
-//     }
-//     res.json({ message: "File updated successfully" });
-//   });
-// });
 
 const express = require("express");
 const fs = require("fs");
@@ -44,6 +6,9 @@ const path = require("path");
 
 const app = express();
 app.use(express.json());
+const cors = require("cors");
+app.use(cors());
+
 
 const dataDir = path.join(process.cwd(), "data");
 
@@ -87,6 +52,28 @@ app.post("/api/feedback/:route", (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(feedbackList, null, 2));
   
     res.status(201).send("Feedback saved successfully.");
+  });
+
+  app.delete("/api/feedback/:route/:index", (req, res) => {
+    const route = req.params.route || "default";
+    const index = parseInt(req.params.index);
+    const filePath = path.join(dataDir, `${route}.txt`);
+  
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send("Feedback file not found.");
+    }
+  
+    const data = fs.readFileSync(filePath, "utf-8");
+    const feedbackList = JSON.parse(data);
+  
+    if (index < 0 || index >= feedbackList.length) {
+      return res.status(400).send("Invalid feedback index.");
+    }
+  
+    feedbackList.splice(index, 1); // Remove the feedback at the specified index
+    fs.writeFileSync(filePath, JSON.stringify(feedbackList, null, 2));
+  
+    res.status(200).send("Feedback deleted successfully.");
   });
   
 
