@@ -100,11 +100,12 @@ app.post('/api/generate-sbi-statement', (req, res) => {
     try {
         const { accountInfo, transactions } = req.body;
         
-        // Create a PDF document with proper margins
+        // Create a PDF document with precise measurements
         const doc = new PDFDocument({ 
             margin: 40,
             size: 'A4',
-            layout: 'portrait'
+            layout: 'portrait',
+            bufferPages: true
         });
         
         // Set response headers
@@ -114,8 +115,8 @@ app.post('/api/generate-sbi-statement', (req, res) => {
         // Pipe the PDF to the response
         doc.pipe(res);
 
-        // Add SBI header with blue color
-        doc.fillColor('#004aad') // SBI blue
+        // SBI Header with exact styling
+        doc.fillColor('#004aad') // Official SBI blue
            .font('Helvetica-Bold')
            .fontSize(16)
            .text('STATE BANK OF INDIA', { 
@@ -124,7 +125,7 @@ app.post('/api/generate-sbi-statement', (req, res) => {
                lineGap: 5
            });
 
-        // Add account statement title
+        // Account Statement title
         doc.fontSize(12)
            .text('Account Statement', { 
                align: 'center',
@@ -132,98 +133,63 @@ app.post('/api/generate-sbi-statement', (req, res) => {
                lineGap: 10
            });
 
-        // Add horizontal line
+        // Horizontal divider line
         doc.moveTo(40, doc.y)
            .lineTo(550, doc.y)
            .lineWidth(1)
            .strokeColor('#004aad')
            .stroke();
 
-        // Add account information with proper spacing
-        doc.moveDown(1);
+        // Account Information - precise two-column layout
+        doc.moveDown(0.8);
         doc.font('Helvetica')
            .fontSize(10)
            .fillColor('black');
 
-        const infoLeft = 50;
-        const infoRight = 300;
+        const leftColX = 50;
+        const rightColX = 280;
         let currentY = doc.y;
 
-        // Left column
-        doc.text('Account Name :', infoLeft, currentY);
-        doc.text(accountInfo.accountName, infoRight, currentY);
-        currentY += 15;
+        // Function to add perfectly aligned label-value pairs
+        const addInfoRow = (label, value, y) => {
+            doc.text(label, leftColX, y);
+            doc.text(value, rightColX, y);
+            return y + 15;
+        };
 
-        doc.text('Address :', infoLeft, currentY);
-        doc.text(accountInfo.addressLine1, infoRight, currentY);
+        // Left column items
+        currentY = addInfoRow('Account Name :', accountInfo.accountName, currentY);
+        doc.text('Address :', leftColX, currentY);
+        doc.text(accountInfo.addressLine1, rightColX, currentY);
         currentY += 15;
-        doc.text(accountInfo.addressLine2, infoRight, currentY);
+        doc.text(accountInfo.addressLine2, rightColX, currentY);
         currentY += 15;
-        doc.text(accountInfo.addressLine3, infoRight, currentY);
+        doc.text(accountInfo.addressLine3, rightColX, currentY);
         currentY += 15;
-        doc.text(accountInfo.addressLine4, infoRight, currentY);
+        doc.text(accountInfo.addressLine4, rightColX, currentY);
         currentY += 20;
 
-        // Right column
-        doc.text('Date :', infoLeft, currentY);
-        doc.text(accountInfo.statementDate, infoRight, currentY);
+        // Right column items
+        currentY = addInfoRow('Date :', accountInfo.statementDate, currentY);
+        currentY = addInfoRow('Account Number :', accountInfo.accountNumber, currentY);
+        currentY = addInfoRow('Account Description :', accountInfo.accountDescription, currentY);
+        currentY = addInfoRow('Branch :', accountInfo.branch, currentY);
+        currentY = addInfoRow('Drawing Power :', accountInfo.drawingPower, currentY);
+        currentY = addInfoRow('Interest Rate(% p.a.) :', accountInfo.interestRate, currentY);
+        currentY = addInfoRow('MOD Balance :', accountInfo.modBalance, currentY);
+        currentY = addInfoRow('CIF No. :', accountInfo.cifNumber, currentY);
+        currentY = addInfoRow('CKYCR Number :', accountInfo.ckycrNumber || '', currentY);
+        currentY = addInfoRow('IFS Code :', accountInfo.ifsCode, currentY);
+        doc.text('(Indian Financial System)', rightColX, currentY);
         currentY += 15;
-
-        doc.text('Account Number :', infoLeft, currentY);
-        doc.text(accountInfo.accountNumber, infoRight, currentY);
+        currentY = addInfoRow('MICR Code :', accountInfo.micrCode, currentY);
+        doc.text('(Magnetic Ink Character Recognition)', rightColX, currentY);
         currentY += 15;
+        currentY = addInfoRow('Nomination Registered :', accountInfo.nomination, currentY);
+        currentY = addInfoRow(`Balance as on ${accountInfo.balanceDate} :`, accountInfo.openingBalance, currentY);
+        currentY += 20;
 
-        doc.text('Account Description :', infoLeft, currentY);
-        doc.text(accountInfo.accountDescription, infoRight, currentY);
-        currentY += 15;
-
-        doc.text('Branch :', infoLeft, currentY);
-        doc.text(accountInfo.branch, infoRight, currentY);
-        currentY += 15;
-
-        doc.text('Drawing Power :', infoLeft, currentY);
-        doc.text(accountInfo.drawingPower, infoRight, currentY);
-        currentY += 15;
-
-        doc.text('Interest Rate(% p.a.) :', infoLeft, currentY);
-        doc.text(accountInfo.interestRate, infoRight, currentY);
-        currentY += 15;
-
-        doc.text('MOD Balance :', infoLeft, currentY);
-        doc.text(accountInfo.modBalance, infoRight, currentY);
-        currentY += 15;
-
-        doc.text('CIF No. :', infoLeft, currentY);
-        doc.text(accountInfo.cifNumber, infoRight, currentY);
-        currentY += 15;
-
-        doc.text('CKYCR Number :', infoLeft, currentY);
-        doc.text(accountInfo.ckycrNumber || '', infoRight, currentY);
-        currentY += 15;
-
-        doc.text('IFS Code :', infoLeft, currentY);
-        doc.text(accountInfo.ifsCode, infoRight, currentY);
-        currentY += 15;
-
-        doc.text('(Indian Financial System)', infoRight, currentY);
-        currentY += 15;
-
-        doc.text('MICR Code :', infoLeft, currentY);
-        doc.text(accountInfo.micrCode, infoRight, currentY);
-        currentY += 15;
-
-        doc.text('(Magnetic Ink Character Recognition)', infoRight, currentY);
-        currentY += 15;
-
-        doc.text('Nomination Registered :', infoLeft, currentY);
-        doc.text(accountInfo.nomination, infoRight, currentY);
-        currentY += 15;
-
-        doc.text(`Balance as on ${accountInfo.balanceDate} :`, infoLeft, currentY);
-        doc.text(accountInfo.openingBalance, infoRight, currentY);
-        currentY += 25;
-
-        // Add statement period with horizontal line
+        // Statement period with divider
         doc.font('Helvetica-Bold')
            .text(`Account Statement from ${accountInfo.startDate} to ${accountInfo.endDate}`, {
                align: 'left',
@@ -238,17 +204,17 @@ app.post('/api/generate-sbi-statement', (req, res) => {
 
         doc.moveDown(0.5);
 
-        // Create transaction table with proper alignment
+        // Transaction table with pixel-perfect alignment
         const tableTop = doc.y;
         const colWidths = [70, 70, 150, 100, 50, 50, 70];
         const rowHeight = 20;
         const cellPadding = 5;
 
-        // Draw table headers with gray background
+        // Draw table headers with exact SBI style
         doc.font('Helvetica-Bold');
         let x = 40;
         
-        // Header row background
+        // Header background
         doc.rect(x, tableTop, 510, rowHeight)
            .fill('#e6e6e6');
 
@@ -267,12 +233,12 @@ app.post('/api/generate-sbi-statement', (req, res) => {
             doc.fillColor('black')
                .text(header, x + cellPadding, tableTop + cellPadding, {
                    width: colWidths[i] - cellPadding * 2,
-                   align: 'left'
+                   align: i >= 4 ? 'right' : 'left' // Right align for amounts
                });
             x += colWidths[i];
         });
 
-        // Draw table rows
+        // Draw table rows with perfect alignment
         doc.font('Helvetica');
         transactions.forEach((row, rowIndex) => {
             x = 40;
@@ -282,7 +248,7 @@ app.post('/api/generate-sbi-statement', (req, res) => {
             doc.rect(x, y, 510, rowHeight)
                .stroke('#000000');
 
-            // Draw cell content
+            // Draw cell content with proper alignment
             [
                 row.txnDate,
                 row.valueDate,
@@ -293,17 +259,19 @@ app.post('/api/generate-sbi-statement', (req, res) => {
                 row.balance
             ].forEach((cell, cellIndex) => {
                 doc.fillColor('black')
-                   .text(cell || '', x + cellPadding, y + cellPadding, {
-                       width: colWidths[cellIndex] - cellPadding * 2,
-                       align: cellIndex >= 4 ? 'right' : 'left' // Right align for amounts
-                   });
+                   .text(cell || '', 
+                       x + (cellIndex >= 4 ? colWidths[cellIndex] - cellPadding - doc.widthOfString(cell || '') : cellPadding), 
+                       y + cellPadding, {
+                           width: colWidths[cellIndex] - cellPadding * 2,
+                           align: cellIndex >= 4 ? 'right' : 'left'
+                       });
                 x += colWidths[cellIndex];
             });
         });
 
         doc.moveDown(2);
 
-        // Add security notice
+        // Security notice with exact wording
         doc.font('Helvetica')
            .fontSize(9)
            .text('Please do not share your ATM, Debit/Credit card number, PIN (Personal Identification Number) and OTP (One Time Password) with anyone over mail, SMS, phone call or any other media. Bank never asks for such information.', {
@@ -312,7 +280,7 @@ app.post('/api/generate-sbi-statement', (req, res) => {
                width: 500
            });
 
-        // Add footer
+        // Footer with correct disclaimer
         doc.moveDown(1);
         doc.font('Helvetica-Oblique')
            .text('**This is a computer generated statement and does not require a signature.', {
@@ -326,7 +294,6 @@ app.post('/api/generate-sbi-statement', (req, res) => {
         res.status(500).json({ error: 'Failed to generate PDF' });
     }
 });
-
 
 // Start the server
 const PORT = process.env.PORT || 3000;
