@@ -100,8 +100,12 @@ app.post('/api/generate-sbi-statement', (req, res) => {
     try {
         const { accountInfo, transactions } = req.body;
         
-        // Create a PDF document
-        const doc = new PDFDocument({ margin: 30 });
+        // Create a PDF document with proper margins
+        const doc = new PDFDocument({ 
+            margin: 40,
+            size: 'A4',
+            layout: 'portrait'
+        });
         
         // Set response headers
         res.setHeader('Content-Type', 'application/pdf');
@@ -109,92 +113,212 @@ app.post('/api/generate-sbi-statement', (req, res) => {
         
         // Pipe the PDF to the response
         doc.pipe(res);
-        
-        // Add SBI logo (you would need the actual logo file)
-        // doc.image('sbi-logo.png', 50, 45, { width: 50 });
-        
-        // Set font and add header
-        doc.font('Helvetica-Bold')
-           .fontSize(14)
-           .fillColor('#004aad') // SBI blue
-           .text('STATE BANK OF INDIA', { align: 'center' })
-           .moveDown(0.5);
-        
+
+        // Add SBI header with blue color
+        doc.fillColor('#004aad') // SBI blue
+           .font('Helvetica-Bold')
+           .fontSize(16)
+           .text('STATE BANK OF INDIA', { 
+               align: 'center',
+               underline: false,
+               lineGap: 5
+           });
+
         // Add account statement title
         doc.fontSize(12)
-           .text('Account Statement', { align: 'center', underline: true })
-           .moveDown(1);
-        
-        // Add account information
+           .text('Account Statement', { 
+               align: 'center',
+               underline: false,
+               lineGap: 10
+           });
+
+        // Add horizontal line
+        doc.moveTo(40, doc.y)
+           .lineTo(550, doc.y)
+           .lineWidth(1)
+           .strokeColor('#004aad')
+           .stroke();
+
+        // Add account information with proper spacing
+        doc.moveDown(1);
         doc.font('Helvetica')
            .fontSize(10)
-           .fillColor('black')
-           .text(`Account Name : ${accountInfo.accountName}`);
-        
-        doc.text(`Address : ${accountInfo.addressLine1}`);
-        doc.text(`          ${accountInfo.addressLine2}`);
-        doc.text(`          ${accountInfo.addressLine3}`);
-        doc.text(`          ${accountInfo.addressLine4}`);
-        doc.moveDown(0.5);
-        
-        doc.text(`Date : ${accountInfo.statementDate}`);
-        doc.text(`Account Number : ${accountInfo.accountNumber}`);
-        doc.text(`Account Description : ${accountInfo.accountDescription}`);
-        doc.text(`Branch : ${accountInfo.branch}`);
-        doc.text(`Drawing Power : ${accountInfo.drawingPower}`);
-        doc.text(`Interest Rate(% p.a.) : ${accountInfo.interestRate}`);
-        doc.text(`MOD Balance : ${accountInfo.modBalance}`);
-        doc.text(`CIF No. : ${accountInfo.cifNumber}`);
-        doc.text(`CKYCR Number : ${accountInfo.ckycrNumber}`);
-        doc.text(`IFS Code : ${accountInfo.ifsCode}`);
-        doc.text(`(Indian Financial System)`);
-        doc.text(`MICR Code : ${accountInfo.micrCode}`);
-        doc.text(`(Magnetic Ink Character Recognition)`);
-        doc.text(`Nomination Registered : ${accountInfo.nomination}`);
-        doc.text(`Balance as on ${accountInfo.balanceDate} : ${accountInfo.openingBalance}`);
-        doc.moveDown(1);
-        
-        // Add statement period
+           .fillColor('black');
+
+        const infoLeft = 50;
+        const infoRight = 300;
+        let currentY = doc.y;
+
+        // Left column
+        doc.text('Account Name :', infoLeft, currentY);
+        doc.text(accountInfo.accountName, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('Address :', infoLeft, currentY);
+        doc.text(accountInfo.addressLine1, infoRight, currentY);
+        currentY += 15;
+        doc.text(accountInfo.addressLine2, infoRight, currentY);
+        currentY += 15;
+        doc.text(accountInfo.addressLine3, infoRight, currentY);
+        currentY += 15;
+        doc.text(accountInfo.addressLine4, infoRight, currentY);
+        currentY += 20;
+
+        // Right column
+        doc.text('Date :', infoLeft, currentY);
+        doc.text(accountInfo.statementDate, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('Account Number :', infoLeft, currentY);
+        doc.text(accountInfo.accountNumber, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('Account Description :', infoLeft, currentY);
+        doc.text(accountInfo.accountDescription, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('Branch :', infoLeft, currentY);
+        doc.text(accountInfo.branch, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('Drawing Power :', infoLeft, currentY);
+        doc.text(accountInfo.drawingPower, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('Interest Rate(% p.a.) :', infoLeft, currentY);
+        doc.text(accountInfo.interestRate, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('MOD Balance :', infoLeft, currentY);
+        doc.text(accountInfo.modBalance, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('CIF No. :', infoLeft, currentY);
+        doc.text(accountInfo.cifNumber, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('CKYCR Number :', infoLeft, currentY);
+        doc.text(accountInfo.ckycrNumber || '', infoRight, currentY);
+        currentY += 15;
+
+        doc.text('IFS Code :', infoLeft, currentY);
+        doc.text(accountInfo.ifsCode, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('(Indian Financial System)', infoRight, currentY);
+        currentY += 15;
+
+        doc.text('MICR Code :', infoLeft, currentY);
+        doc.text(accountInfo.micrCode, infoRight, currentY);
+        currentY += 15;
+
+        doc.text('(Magnetic Ink Character Recognition)', infoRight, currentY);
+        currentY += 15;
+
+        doc.text('Nomination Registered :', infoLeft, currentY);
+        doc.text(accountInfo.nomination, infoRight, currentY);
+        currentY += 15;
+
+        doc.text(`Balance as on ${accountInfo.balanceDate} :`, infoLeft, currentY);
+        doc.text(accountInfo.openingBalance, infoRight, currentY);
+        currentY += 25;
+
+        // Add statement period with horizontal line
         doc.font('Helvetica-Bold')
-           .text(`Account Statement from ${accountInfo.startDate} to ${accountInfo.endDate}`)
-           .moveDown(1);
+           .text(`Account Statement from ${accountInfo.startDate} to ${accountInfo.endDate}`, {
+               align: 'left',
+               lineGap: 10
+           });
+
+        doc.moveTo(40, doc.y)
+           .lineTo(550, doc.y)
+           .lineWidth(1)
+           .strokeColor('#004aad')
+           .stroke();
+
+        doc.moveDown(0.5);
+
+        // Create transaction table with proper alignment
+        const tableTop = doc.y;
+        const colWidths = [70, 70, 150, 100, 50, 50, 70];
+        const rowHeight = 20;
+        const cellPadding = 5;
+
+        // Draw table headers with gray background
+        doc.font('Helvetica-Bold');
+        let x = 40;
         
-        // Create transaction table
-        const table = {
-            headers: [
-                'Txn Date', 
-                'Value Date', 
-                'Description', 
-                'Ref No./Cheque No.', 
-                'Debit', 
-                'Credit', 
-                'Balance'
-            ],
-            rows: transactions.map(txn => [
-                txn.txnDate,
-                txn.valueDate,
-                txn.description,
-                txn.reference,
-                txn.debit,
-                txn.credit,
-                txn.balance
-            ])
-        };
+        // Header row background
+        doc.rect(x, tableTop, 510, rowHeight)
+           .fill('#e6e6e6');
+
+        // Header text
+        const headers = [
+            'Txn Date', 
+            'Value Date', 
+            'Description', 
+            'Ref No./Cheque No.', 
+            'Debit', 
+            'Credit', 
+            'Balance'
+        ];
         
-        // Draw table
-        drawTable(doc, table);
+        headers.forEach((header, i) => {
+            doc.fillColor('black')
+               .text(header, x + cellPadding, tableTop + cellPadding, {
+                   width: colWidths[i] - cellPadding * 2,
+                   align: 'left'
+               });
+            x += colWidths[i];
+        });
+
+        // Draw table rows
+        doc.font('Helvetica');
+        transactions.forEach((row, rowIndex) => {
+            x = 40;
+            const y = tableTop + (rowIndex + 1) * rowHeight;
+            
+            // Draw cell borders
+            doc.rect(x, y, 510, rowHeight)
+               .stroke('#000000');
+
+            // Draw cell content
+            [
+                row.txnDate,
+                row.valueDate,
+                row.description,
+                row.reference,
+                row.debit,
+                row.credit,
+                row.balance
+            ].forEach((cell, cellIndex) => {
+                doc.fillColor('black')
+                   .text(cell || '', x + cellPadding, y + cellPadding, {
+                       width: colWidths[cellIndex] - cellPadding * 2,
+                       align: cellIndex >= 4 ? 'right' : 'left' // Right align for amounts
+                   });
+                x += colWidths[cellIndex];
+            });
+        });
+
         doc.moveDown(2);
-        
+
         // Add security notice
         doc.font('Helvetica')
            .fontSize(9)
-           .text('Please do not share your ATM, Debit/Credit card number, PIN (Personal Identification Number) and OTP (One Time Password) with anyone over mail, SMS, phone call or any other media. Bank never asks for such information.')
-           .moveDown(1);
-        
+           .text('Please do not share your ATM, Debit/Credit card number, PIN (Personal Identification Number) and OTP (One Time Password) with anyone over mail, SMS, phone call or any other media. Bank never asks for such information.', {
+               align: 'left',
+               lineGap: 5,
+               width: 500
+           });
+
         // Add footer
+        doc.moveDown(1);
         doc.font('Helvetica-Oblique')
-           .text('**This is a computer generated statement and does not require a signature.', { align: 'center' });
-        
+           .text('**This is a computer generated statement and does not require a signature.', {
+               align: 'center'
+           });
+
         // Finalize the PDF
         doc.end();
     } catch (error) {
@@ -203,45 +327,6 @@ app.post('/api/generate-sbi-statement', (req, res) => {
     }
 });
 
-// Helper function to draw a table
-function drawTable(doc, table) {
-    const tableTop = doc.y;
-    const colWidths = [70, 70, 150, 100, 50, 50, 70];
-    const rowHeight = 20;
-    const cellPadding = 5;
-    
-    // Draw headers
-    doc.font('Helvetica-Bold');
-    let x = doc.x;
-    table.headers.forEach((header, i) => {
-        doc.rect(x, tableTop, colWidths[i], rowHeight)
-           .fillAndStroke('#e6e6e6', '#000000');
-        doc.fillColor('black')
-           .text(header, x + cellPadding, tableTop + cellPadding, {
-               width: colWidths[i] - cellPadding * 2,
-               align: 'left'
-           });
-        x += colWidths[i];
-    });
-    
-    // Draw rows
-    doc.font('Helvetica');
-    table.rows.forEach((row, rowIndex) => {
-        x = doc.x;
-        const y = tableTop + (rowIndex + 1) * rowHeight;
-        
-        row.forEach((cell, cellIndex) => {
-            doc.rect(x, y, colWidths[cellIndex], rowHeight)
-               .stroke('#000000');
-            doc.fillColor('black')
-               .text(cell || '', x + cellPadding, y + cellPadding, {
-                   width: colWidths[cellIndex] - cellPadding * 2,
-                   align: 'left'
-               });
-            x += colWidths[cellIndex];
-        });
-    });
-}
 
 // Start the server
 const PORT = process.env.PORT || 3000;
