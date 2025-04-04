@@ -1,8 +1,9 @@
 const express = require("express");
 const { get, set } = require("@vercel/blob"); // Import Vercel Blob methods
 const cors = require("cors");
-const PDFDocument = require('pdfkit');
-const bodyParser = require('body-parser');
+const PDFDocument = require("pdfkit");
+const bodyParser = require("body-parser");
+const pdf = require("html-pdf");
 
 const app = express();
 app.use(express.json());
@@ -96,203 +97,297 @@ app.delete("/api/feedback/:route/:index", async (req, res) => {
 });
 
 // API endpoint to generate and download the PDF
-app.post('/api/generate-sbi-statement', (req, res) => {
-    try {
-        const { accountInfo, transactions } = req.body;
+app.post("/api/generate-sbi-statement", (req, res) => {
+  try {
+    const accountInfo = req.body.accountInfo || {
+      accountName: "Mr. G CHANDRAMOULI REDDY",
+      accountNumber: "00000031529681353",
+      branch: "VIVEKANANDA NAGAR KUKATPALLY",
+      // ... other default values
+    };
+
+    const transactions =
+      req.body.transactions ||
+      [
+        // ... default transactions
+      ];
+
+    // Direct HTML with embedded CSS
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SBI Account Statement</title>
+    <style>
+      body {
+        margin: 0 auto;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+        width: 143mm;
+      }
+
+      .sbi-container {
+        margin: 0 auto;
+        background: white;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .sbi-info-row {
+        margin-bottom: 4px;
+        font-size: 9px;
+      }
+
+      .sbi-info-label {
+        width: 110px;
+        display: inline-block;
+        vertical-align: top;
+      }
+      .sbi-info-value {
+        display: inline-block;
+      }
+      .sbi-address-line2 {
+        margin-left: 8px;
+      }
+
+      .sbi-statement-period {
+        margin-top: 25px;
+        margin-bottom: 15px;
+        font-size: 11px;
+      }
+
+      .sbi-transaction-table {
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 4px;
+        background-color: transparent;
+        border: 1px solid #000;
+        border-collapse: collapse;
         
-        // Create a PDF document with precise measurements
-        const doc = new PDFDocument({ 
-            margin: 40,
-            size: 'A4',
-            layout: 'portrait',
-            bufferPages: true
-        });
-        
-        // Set response headers
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=SBI_Statement_${accountInfo.accountNumber}.pdf`);
-        
-        // Pipe the PDF to the response
-        doc.pipe(res);
+      }
 
-        // SBI Header with exact styling
-        doc.fillColor('#004aad') // Official SBI blue
-           .font('Helvetica-Bold')
-           .fontSize(16)
-           .text('STATE BANK OF INDIA', { 
-               align: 'center',
-               underline: false,
-               lineGap: 5
-           });
+      .sbi-transaction-table td {
+        padding: 1px 2px 0px 2px;
+        vertical-align: top;
+        border: 1px solid #000;
+        vertical-align: top;
+        font-size: 9px;
+      }
 
-        // Account Statement title
-        doc.fontSize(12)
-           .text('Account Statement', { 
-               align: 'center',
-               underline: false,
-               lineGap: 10
-           });
+      .sbi-transaction-table th {
+        padding: 4px 2px 1px 2px;
+        vertical-align: top;
+        border: 1px solid #000;
+        vertical-align: top;
+        font-size: 10px;
+      }
 
-        // Horizontal divider line
-        doc.moveTo(40, doc.y)
-           .lineTo(550, doc.y)
-           .lineWidth(1)
-           .strokeColor('#004aad')
-           .stroke();
+      .sbi-transaction-table .sbi-amount {
+        text-align: right;
+      }
 
-        // Account Information - precise two-column layout
-        doc.moveDown(0.8);
-        doc.font('Helvetica')
-           .fontSize(10)
-           .fillColor('black');
+      .sbi-notice {
+        text-indent: 17px;
+        font-size: 9px;
+        line-height: 1.5;
+        margin-bottom: 15px;
+      }
 
-        const leftColX = 50;
-        const rightColX = 280;
-        let currentY = doc.y;
+      .sbi-footer {
+        font-size: 9px;
+      }
+    </style>
+  </head>
 
-        // Function to add perfectly aligned label-value pairs
-        const addInfoRow = (label, value, y) => {
-            doc.text(label, leftColX, y);
-            doc.text(value, rightColX, y);
-            return y + 15;
-        };
+  <body>
+    <div class="sbi-container">
+      <img
+        src="https://upload.wikimedia.org/wikipedia/en/5/58/State_Bank_of_India_logo.svg"
+        height="39"
+        style="margin-bottom: 10px; margin-left: 7px"
+      />
 
-        // Left column items
-        currentY = addInfoRow('Account Name :', accountInfo.accountName, currentY);
-        doc.text('Address :', leftColX, currentY);
-        doc.text(accountInfo.addressLine1, rightColX, currentY);
-        currentY += 15;
-        doc.text(accountInfo.addressLine2, rightColX, currentY);
-        currentY += 15;
-        doc.text(accountInfo.addressLine3, rightColX, currentY);
-        currentY += 15;
-        doc.text(accountInfo.addressLine4, rightColX, currentY);
-        currentY += 20;
+      <div class="sbi-info-container">
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Account Name</div>
+          <div class="sbi-info-value">: Mr. G CHANDRAMOULI REDDY</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Address</div>
+          <div class="sbi-info-value">
+            <div class="sbi-address-line">: FLAT NO 302, HNO-4-32-1/114,</div>
+            <div class="sbi-address-line2">PARDHASAI CLASSIC</div>
+            <div class="sbi-address-line2">
+              SAPTHAGIRI COLONY, KUKATPALLY-500072
+            </div>
+            <div class="sbi-address-line2">RANGA REDDY</div>
+          </div>
+        </div>
 
-        // Right column items
-        currentY = addInfoRow('Date :', accountInfo.statementDate, currentY);
-        currentY = addInfoRow('Account Number :', accountInfo.accountNumber, currentY);
-        currentY = addInfoRow('Account Description :', accountInfo.accountDescription, currentY);
-        currentY = addInfoRow('Branch :', accountInfo.branch, currentY);
-        currentY = addInfoRow('Drawing Power :', accountInfo.drawingPower, currentY);
-        currentY = addInfoRow('Interest Rate(% p.a.) :', accountInfo.interestRate, currentY);
-        currentY = addInfoRow('MOD Balance :', accountInfo.modBalance, currentY);
-        currentY = addInfoRow('CIF No. :', accountInfo.cifNumber, currentY);
-        currentY = addInfoRow('CKYCR Number :', accountInfo.ckycrNumber || '', currentY);
-        currentY = addInfoRow('IFS Code :', accountInfo.ifsCode, currentY);
-        doc.text('(Indian Financial System)', rightColX, currentY);
-        currentY += 15;
-        currentY = addInfoRow('MICR Code :', accountInfo.micrCode, currentY);
-        doc.text('(Magnetic Ink Character Recognition)', rightColX, currentY);
-        currentY += 15;
-        currentY = addInfoRow('Nomination Registered :', accountInfo.nomination, currentY);
-        currentY = addInfoRow(`Balance as on ${accountInfo.balanceDate} :`, accountInfo.openingBalance, currentY);
-        currentY += 20;
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Date</div>
+          <div class="sbi-info-value">: 3 Apr 2025</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Account Number</div>
+          <div class="sbi-info-value">: 00000031529681353</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Account Description</div>
+          <div class="sbi-info-value">: REGULAR SB NCHQ-INDIVIDUALS</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Branch</div>
+          <div class="sbi-info-value">: VIVEKANANDA NAGAR KUKATPALLY</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Drawing Power</div>
+          <div class="sbi-info-value">: 0.00</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Interest Rate(% p.a.)</div>
+          <div class="sbi-info-value">: 2.7</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">MOD Balance</div>
+          <div class="sbi-info-value">: 0.00</div>
+        </div>
+      </div>
 
-        // Statement period with divider
-        doc.font('Helvetica-Bold')
-           .text(`Account Statement from ${accountInfo.startDate} to ${accountInfo.endDate}`, {
-               align: 'left',
-               lineGap: 10
-           });
+      <div class="sbi-info-container">
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">CIF No.</div>
+          <div class="sbi-info-value">: 85926748395</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">CKYCR Number</div>
+          <div class="sbi-info-value">:</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">
+            <div>IFS Code</div>
+          </div>
+          <div class="sbi-info-value">: SBN0017761</div>
+        </div>
+        <div class="sbi-info-row">(Indian Financial System)</div>
 
-        doc.moveTo(40, doc.y)
-           .lineTo(550, doc.y)
-           .lineWidth(1)
-           .strokeColor('#004aad')
-           .stroke();
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">
+            <div>MICR Code</div>
+          </div>
+          <div class="sbi-info-value">: 500002223</div>
+        </div>
+        <div class="sbi-info-row">(Magnetic Ink Character Recognition)</div>
 
-        doc.moveDown(0.5);
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Nomination Registered</div>
+          <div class="sbi-info-value">: Yes</div>
+        </div>
+        <div class="sbi-info-row">
+          <div class="sbi-info-label">Balance as on 1 Apr 2023</div>
+          <div class="sbi-info-value">: 6,685.21</div>
+        </div>
+      </div>
 
-        // Transaction table with pixel-perfect alignment
-        const tableTop = doc.y;
-        const colWidths = [70, 70, 150, 100, 50, 50, 70];
-        const rowHeight = 20;
-        const cellPadding = 5;
+      <div class="sbi-statement-period">
+        Account Statement from 1 Apr 2023 to 31 Mar 2024
+      </div>
 
-        // Draw table headers with exact SBI style
-        doc.font('Helvetica-Bold');
-        let x = 40;
-        
-        // Header background
-        doc.rect(x, tableTop, 510, rowHeight)
-           .fill('#e6e6e6');
+      <div class="sbi-divider"></div>
 
-        // Header text
-        const headers = [
-            'Txn Date', 
-            'Value Date', 
-            'Description', 
-            'Ref No./Cheque No.', 
-            'Debit', 
-            'Credit', 
-            'Balance'
-        ];
-        
-        headers.forEach((header, i) => {
-            doc.fillColor('black')
-               .text(header, x + cellPadding, tableTop + cellPadding, {
-                   width: colWidths[i] - cellPadding * 2,
-                   align: i >= 4 ? 'right' : 'left' // Right align for amounts
-               });
-            x += colWidths[i];
-        });
+      <table class="sbi-transaction-table">
+        <thead>
+          <tr>
+            <th style="width: 52px; text-align: left">Txn Date</th>
+            <th style="width: 52px; text-align: left">Value Date</th>
+            <th style="text-align: left">Description</th>
+            <th style="width: 76px; text-align: left">Ref No./Cheque No.</th>
+            <th style="text-align: right; width: 70px">Debit</th>
+            <th style="text-align: right; width: 70px">Credit</th>
+            <th style="text-align: right; width: 80px">Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="sbi-amount">25 Jun 2023</td>
+            <td class="sbi-amount">25 Jun 2023</td>
+            <td>CREDIT INTEREST--</td>
+            <td></td>
+            <td class="sbi-amount"></td>
+            <td class="sbi-amount">46.00</td>
+            <td class="sbi-amount">6,731.21</td>
+          </tr>
+          <tr>
+            <td class="sbi-amount">28 Dec 2023</td>
+            <td class="sbi-amount">28 Dec 2023</td>
+            <td>
+              BY TRANSFER-UP//CR/336275295235/M RADHIKA/HDFC/mucheli@o/U PI-
+            </td>
+            <td>TRANSFER FROM 4897735162098</td>
+            <td class="sbi-amount"></td>
+            <td class="sbi-amount">1.00</td>
+            <td class="sbi-amount">6,674.71</td>
+          </tr>
+          <tr>
+            <td class="sbi-amount">25 Mar 2024</td>
+            <td class="sbi-amount">25 Mar 2024</td>
+            <td>CREDIT INTEREST--</td>
+            <td></td>
+            <td class="sbi-amount"></td>
+            <td class="sbi-amount">45.00</td>
+            <td class="sbi-amount">6,719.71</td>
+          </tr>
+        </tbody>
+      </table>
 
-        // Draw table rows with perfect alignment
-        doc.font('Helvetica');
-        transactions.forEach((row, rowIndex) => {
-            x = 40;
-            const y = tableTop + (rowIndex + 1) * rowHeight;
-            
-            // Draw cell borders
-            doc.rect(x, y, 510, rowHeight)
-               .stroke('#000000');
+      <div class="sbi-notice">
+        Please do not share your ATM, Debit/Credit card number, PIN (Personal
+        Identification Number) and OTP (One Time Password) with anyone over
+        mail, SMS, phone call or any other media. Bank never asks for such
+        information.
+      </div>
 
-            // Draw cell content with proper alignment
-            [
-                row.txnDate,
-                row.valueDate,
-                row.description,
-                row.reference,
-                row.debit,
-                row.credit,
-                row.balance
-            ].forEach((cell, cellIndex) => {
-                doc.fillColor('black')
-                   .text(cell || '', 
-                       x + (cellIndex >= 4 ? colWidths[cellIndex] - cellPadding - doc.widthOfString(cell || '') : cellPadding), 
-                       y + cellPadding, {
-                           width: colWidths[cellIndex] - cellPadding * 2,
-                           align: cellIndex >= 4 ? 'right' : 'left'
-                       });
-                x += colWidths[cellIndex];
-            });
-        });
+      <div class="sbi-footer">
+        **This is a computer generated statement and does not require a
+        signature.
+      </div>
+    </div>
+  </body>
+</html>
+`;
 
-        doc.moveDown(2);
+    // PDF options
+    const pdfOptions = {
+      format: "A4",
+      border: {
+        top: "15mm",
+        right: "9mm",
+        bottom: "9mm",
+        left: "10mm",
+      },
+      timeout: 60000,
+    };
 
-        // Security notice with exact wording
-        doc.font('Helvetica')
-           .fontSize(9)
-           .text('Please do not share your ATM, Debit/Credit card number, PIN (Personal Identification Number) and OTP (One Time Password) with anyone over mail, SMS, phone call or any other media. Bank never asks for such information.', {
-               align: 'left',
-               lineGap: 5,
-               width: 500
-           });
+    // Generate PDF
+    pdf.create(htmlContent, pdfOptions).toStream((err, stream) => {
+      if (err) {
+        return res.status(500).send("Error generating PDF");
+      }
 
-        // Footer with correct disclaimer
-        doc.moveDown(1);
-        doc.font('Helvetica-Oblique')
-           .text('**This is a computer generated statement and does not require a signature.', {
-               align: 'center'
-           });
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 18);
 
-        // Finalize the PDF
-        doc.end();
-    } catch (error) {
-        console.error('Error generating PDF:', error);
-        res.status(500).json({ error: 'Failed to generate PDF' });
-    }
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${timestamp}${randomStr}.pdf`
+      );
+      stream.pipe(res);
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // Start the server
