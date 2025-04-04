@@ -99,18 +99,41 @@ app.delete("/api/feedback/:route/:index", async (req, res) => {
 // API endpoint to generate and download the PDF
 app.post("/api/generate-sbi-statement", (req, res) => {
   try {
-    const accountInfo = req.body.accountInfo || {
+    const accountInfo = req.body.accountInf || {
       accountName: "Mr. G CHANDRAMOULI REDDY",
       accountNumber: "00000031529681353",
       branch: "VIVEKANANDA NAGAR KUKATPALLY",
-      // ... other default values
+      addressLine1: "FLAT NO 302, HNO-4-32-1/114,",
+      addressLine2: "PARDHASAI CLASSIC",
+      addressLine3: "SAPTHAGIRI COLONY, KUKATPALLY-500072",
+      addressLine4: "RANGA REDDY",
+      statementDate: "3 Apr 2025",
+      accountDescription: "REGULAR SB NCHQ-INDIVIDUALS",
+      drawingPower: "0.00",
+      interestRate: "2.7",
+      modBalance: "0.00",
+      cifNumber: "85926748395",
+      ckycrNumber: "",
+      ifsCode: "SBN0017761",
+      micrCode: "500002223",
+      nomination: "Yes",
+      balanceDate: "1 Apr 2023",
+      openingBalance: "6,685.21",
+      startDate: "1 Apr 2023",
+      endDate: "31 Mar 2024",
     };
 
-    const transactions =
-      req.body.transactions ||
-      [
-        // ... default transactions
-      ];
+    const transactions = req.body.transactions || [
+      {
+        txnDate: "25 Jun 2023",
+        valueDate: "25 Jun 2023",
+        description: "CREDIT INTEREST--",
+        reference: "",
+        debit: "",
+        credit: "46.00",
+        balance: "6,731.21",
+      },
+    ];
 
     // Direct HTML with embedded CSS
     const htmlContent = `<!DOCTYPE html>
@@ -148,7 +171,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         display: inline-block;
       }
       .sbi-address-line2 {
-        margin-left: 8px;
+        margin-left: 5px;
       }
 
       .sbi-statement-period {
@@ -211,64 +234,62 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       <div class="sbi-info-container">
         <div class="sbi-info-row">
           <div class="sbi-info-label">Account Name</div>
-          <div class="sbi-info-value">: Mr. G CHANDRAMOULI REDDY</div>
+          <div class="sbi-info-value">: ${accountInfo.accountName}</div>
         </div>
         <div class="sbi-info-row">
           <div class="sbi-info-label">Address</div>
           <div class="sbi-info-value">
-            <div class="sbi-address-line">: FLAT NO 302, HNO-4-32-1/114,</div>
-            <div class="sbi-address-line2">PARDHASAI CLASSIC</div>
-            <div class="sbi-address-line2">
-              SAPTHAGIRI COLONY, KUKATPALLY-500072
-            </div>
-            <div class="sbi-address-line2">RANGA REDDY</div>
+            <div class="sbi-address-line">: ${accountInfo.addressLine1}</div>
+            <div class="sbi-address-line2">${accountInfo.addressLine2}</div>
+            <div class="sbi-address-line2">${accountInfo.addressLine3}</div>
+            <div class="sbi-address-line2">${accountInfo.addressLine4}</div>
           </div>
         </div>
 
         <div class="sbi-info-row">
           <div class="sbi-info-label">Date</div>
-          <div class="sbi-info-value">: 3 Apr 2025</div>
+          <div class="sbi-info-value">: ${accountInfo.statementDate}</div>
         </div>
         <div class="sbi-info-row">
           <div class="sbi-info-label">Account Number</div>
-          <div class="sbi-info-value">: 00000031529681353</div>
+          <div class="sbi-info-value">: ${accountInfo.accountNumber}</div>
         </div>
         <div class="sbi-info-row">
           <div class="sbi-info-label">Account Description</div>
-          <div class="sbi-info-value">: REGULAR SB NCHQ-INDIVIDUALS</div>
+          <div class="sbi-info-value">: ${accountInfo.accountDescription}</div>
         </div>
         <div class="sbi-info-row">
           <div class="sbi-info-label">Branch</div>
-          <div class="sbi-info-value">: VIVEKANANDA NAGAR KUKATPALLY</div>
+          <div class="sbi-info-value">: ${accountInfo.branch}</div>
         </div>
         <div class="sbi-info-row">
           <div class="sbi-info-label">Drawing Power</div>
-          <div class="sbi-info-value">: 0.00</div>
+          <div class="sbi-info-value">: ${accountInfo.drawingPower}</div>
         </div>
         <div class="sbi-info-row">
           <div class="sbi-info-label">Interest Rate(% p.a.)</div>
-          <div class="sbi-info-value">: 2.7</div>
+          <div class="sbi-info-value">: ${accountInfo.interestRate}</div>
         </div>
         <div class="sbi-info-row">
           <div class="sbi-info-label">MOD Balance</div>
-          <div class="sbi-info-value">: 0.00</div>
+          <div class="sbi-info-value">: ${accountInfo.modBalance}</div>
         </div>
       </div>
 
       <div class="sbi-info-container">
         <div class="sbi-info-row">
           <div class="sbi-info-label">CIF No.</div>
-          <div class="sbi-info-value">: 85926748395</div>
+          <div class="sbi-info-value">: ${accountInfo.cifNumber}</div>
         </div>
         <div class="sbi-info-row">
           <div class="sbi-info-label">CKYCR Number</div>
-          <div class="sbi-info-value">:</div>
+          <div class="sbi-info-value">: ${accountInfo.ckycrNumber}</div>
         </div>
         <div class="sbi-info-row">
           <div class="sbi-info-label">
             <div>IFS Code</div>
           </div>
-          <div class="sbi-info-value">: SBN0017761</div>
+          <div class="sbi-info-value">: ${accountInfo.ifsCode}</div>
         </div>
         <div class="sbi-info-row">(Indian Financial System)</div>
 
@@ -276,22 +297,26 @@ app.post("/api/generate-sbi-statement", (req, res) => {
           <div class="sbi-info-label">
             <div>MICR Code</div>
           </div>
-          <div class="sbi-info-value">: 500002223</div>
+          <div class="sbi-info-value">: ${accountInfo.micrCode}</div>
         </div>
         <div class="sbi-info-row">(Magnetic Ink Character Recognition)</div>
 
         <div class="sbi-info-row">
           <div class="sbi-info-label">Nomination Registered</div>
-          <div class="sbi-info-value">: Yes</div>
+          <div class="sbi-info-value">: ${accountInfo.nomination}</div>
         </div>
         <div class="sbi-info-row">
-          <div class="sbi-info-label">Balance as on 1 Apr 2023</div>
-          <div class="sbi-info-value">: 6,685.21</div>
+          <div class="sbi-info-label">Balance as on ${
+            accountInfo.balanceDate
+          }</div>
+          <div class="sbi-info-value">: ${accountInfo.openingBalance}</div>
         </div>
       </div>
 
       <div class="sbi-statement-period">
-        Account Statement from 1 Apr 2023 to 31 Mar 2024
+        Account Statement from ${accountInfo.startDate} to ${
+      accountInfo.endDate
+    }
       </div>
 
       <div class="sbi-divider"></div>
@@ -309,35 +334,21 @@ app.post("/api/generate-sbi-statement", (req, res) => {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td class="sbi-amount">25 Jun 2023</td>
-            <td class="sbi-amount">25 Jun 2023</td>
-            <td>CREDIT INTEREST--</td>
-            <td></td>
-            <td class="sbi-amount"></td>
-            <td class="sbi-amount">46.00</td>
-            <td class="sbi-amount">6,731.21</td>
-          </tr>
-          <tr>
-            <td class="sbi-amount">28 Dec 2023</td>
-            <td class="sbi-amount">28 Dec 2023</td>
-            <td>
-              BY TRANSFER-UP//CR/336275295235/M RADHIKA/HDFC/mucheli@o/U PI-
-            </td>
-            <td>TRANSFER FROM 4897735162098</td>
-            <td class="sbi-amount"></td>
-            <td class="sbi-amount">1.00</td>
-            <td class="sbi-amount">6,674.71</td>
-          </tr>
-          <tr>
-            <td class="sbi-amount">25 Mar 2024</td>
-            <td class="sbi-amount">25 Mar 2024</td>
-            <td>CREDIT INTEREST--</td>
-            <td></td>
-            <td class="sbi-amount"></td>
-            <td class="sbi-amount">45.00</td>
-            <td class="sbi-amount">6,719.71</td>
-          </tr>
+          ${transactions
+            .map(
+              (txn) => `
+            <tr>
+              <td>${txn.txnDate || txn.Date}</td>
+              <td>${txn.valueDate || txn.Date}</td>
+              <td>${txn.description || txn.Narration}</td>
+              <td>${txn.reference || txn.Ref}</td>
+              <td class="sbi-amount">${txn.debit || txn.Debit}</td>
+              <td class="sbi-amount">${txn.credit || txn.Credit}</td>
+              <td class="sbi-amount">${txn.balance || txn.Balance}</td>
+            </tr>
+          `
+            )
+            .join("")}
         </tbody>
       </table>
 
@@ -354,8 +365,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       </div>
     </div>
   </body>
-</html>
-`;
+</html>`;
 
     // PDF options
     const pdfOptions = {
