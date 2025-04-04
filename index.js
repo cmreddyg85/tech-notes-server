@@ -98,7 +98,7 @@ app.delete("/api/feedback/:route/:index", async (req, res) => {
 
 // API endpoint to generate and download the PDF
 app.post("/api/generate-sbi-statement", (req, res) => {
-  try {
+  //try {
     const accountInfo = req.body.accountInf || {
       accountName: "Mr. G CHANDRAMOULI REDDY",
       accountNumber: "00000031529681353",
@@ -395,9 +395,9 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       );
       stream.pipe(res);
     });
-  } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
-  }
+  //} catch (error) {
+    //res.status(500).json({ error: "Internal server error" });
+  //}
 });
 
 // Start the server
