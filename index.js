@@ -1,8 +1,11 @@
 const express = require("express");
 const { get, set } = require("@vercel/blob"); // Import Vercel Blob methods
 const cors = require("cors");
+const PDFDocument = require("pdfkit");
 const bodyParser = require("body-parser");
 const pdf = require("html-pdf");
+const puppeteer = require("puppeteer");
+const { generatePdf } = require("html-pdf-node");
 
 const app = express();
 app.use(express.json());
@@ -96,8 +99,8 @@ app.delete("/api/feedback/:route/:index", async (req, res) => {
 });
 
 // API endpoint to generate and download the PDF
-app.post("/api/generate-sbi-statement", (req, res) => {
-  //try {
+app.post("/api/generate-sbi-statement", async (req, res) => {
+  try {
     const accountInfo = req.body.accountInf || {
       accountName: "Mr. G CHANDRAMOULI REDDY",
       accountNumber: "00000031529681353",
@@ -147,7 +150,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         padding: 0;
         font-family: Arial, sans-serif;
         background: #f5f5f5;
-        width: 143mm;
+        width: 210mm;
       }
 
       .sbi-container {
@@ -194,7 +197,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         vertical-align: top;
         border: 1px solid #000;
         vertical-align: top;
-        font-size: 9px;
+        font-size: 13px;
       }
 
       .sbi-transaction-table th {
@@ -202,7 +205,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         vertical-align: top;
         border: 1px solid #000;
         vertical-align: top;
-        font-size: 10px;
+        font-size: 14px;
       }
 
       .sbi-transaction-table .sbi-amount {
@@ -379,24 +382,42 @@ app.post("/api/generate-sbi-statement", (req, res) => {
     };
 
     // Generate PDF
-    pdf.create(htmlContent, pdfOptions).toStream((err, stream) => {
-      if (err) {
-        return res.status(500).send("Error generating PDF");
-      }
+    // pdf.create(htmlContent, pdfOptions).toStream((err, stream) => {
+    //   if (err) {
+    //     return res.status(500).send("Error generating PDF");
+    //   }
 
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 18);
+    const options = {
+      format: "A4",
+      margin: {
+        top: "20mm",
+        right: "10mm",
+        bottom: "20mm",
+        left: "10mm",
+      },
+      printBackground: true,
+      displayHeaderFooter: false,
+      preferCSSPageSize: true,
+    };
 
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename=${timestamp}${randomStr}.pdf`
-      );
-      stream.pipe(res);
-    });
-  //} catch (error) {
-    //res.status(500).json({ error: "Internal server error" });
-  //}
+    const file = { content: htmlContent };
+    const pdfBuffer = await generatePdf(file, options);
+
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 18);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${timestamp}${randomStr}.pdf`
+    );
+    res.send(pdfBuffer);
+    //stream.pipe(res);
+    // });
+  } catch (error) {
+    console.error("PDF generation error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // Start the server
