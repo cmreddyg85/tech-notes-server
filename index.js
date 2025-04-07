@@ -98,46 +98,45 @@ app.delete("/api/feedback/:route/:index", async (req, res) => {
 // API endpoint to generate and download the PDF
 app.post("/api/generate-sbi-statement", (req, res) => {
   try {
-    function dateFormat(dateStr) {
-      const parts = dateStr.split("-");
-      return `${parts[0]} ${parts[1]} 20${parts[2]}`;
+    // Examples
+    //console.log(formatDate("01/03/2019"));  // → "01 Mar 2019"
+    //console.log(formatDate("01-Mar-19"));   // → "01 Mar 2019"
+    function dateFormat(input) {
+      let date;
+
+      if (input.includes("/")) {
+        // Handle "01/03/2019" format
+        const [day, month, year] = input.split("/");
+        date = new Date(
+          `${year.length === 2 ? "20" + year : year}-${month}-${day}`
+        );
+      } else if (input.includes("-")) {
+        // Handle "01-Mar-19" format
+        const [day, monStr, year] = input.split("-");
+        date = new Date(
+          `${year.length === 2 ? "20" + year : year}-${monStr}-${day}`
+        );
+      }
+
+      const options = { day: "2-digit", month: "short", year: "numeric" };
+      return date.toLocaleDateString("en-GB", options);
     }
 
-    const accountInfo = req.body.accountInfo || {
-      accountName: "Mr. G CHANDRAMOULI REDDY",
-      accountNumber: "00000031529681353",
-      branch: "VIVEKANANDA NAGAR KUKATPALLY",
-      addressLine1: "FLAT NO 302, HNO-4-32-1/114,",
-      addressLine2: "PARDHASAI CLASSIC",
-      addressLine3: "SAPTHAGIRI COLONY, KUKATPALLY-500072",
-      addressLine4: "RANGA REDDY",
-      statementDate: "3 Apr 2025",
-      accountDescription: "REGULAR SB NCHQ-INDIVIDUALS",
-      drawingPower: "0.00",
-      interestRate: "2.7",
-      modBalance: "0.00",
-      cifNumber: "85926748395",
-      ckycrNumber: "",
-      ifsCode: "SBN0017761",
-      micrCode: "500002223",
-      nomination: "Yes",
-      balanceDate: "1 Apr 2023",
-      openingBalance: "6,685.21",
-      startDate: "1 Apr 2023",
-      endDate: "31 Mar 2024",
-    };
+    function formatToIndianDenomination(balance) {
+      if (typeof balance !== "string") return balance;
+      if (balance.includes(",")) return balance;
 
-    const transactions = req.body.transactions || [
-      {
-        txnDate: "",
-        valueDate: "",
-        description: "",
-        reference: "",
-        debit: "",
-        credit: "",
-        balance: "",
-      },
-    ];
+      const number = parseFloat(balance);
+      if (isNaN(number)) return balance;
+
+      return number.toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
+
+    const accountInfo = req.body.accountInfo;
+    const transactions = req.body.transactions;
 
     // Direct HTML with embedded CSS
     const htmlContent = `<!DOCTYPE html>
@@ -167,7 +166,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       }
 
       .sbi-info-label {
-        width: 110px;
+        width: 115px;
         display: inline-block;
         vertical-align: top;
       }
@@ -184,28 +183,26 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         font-size: 11px;
       }
 
+      table, th, td {
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+
       .sbi-transaction-table {
         width: 100%;
         max-width: 100%;
         margin-bottom: 4px;
         background-color: transparent;
-        border: 1px solid #000;
-        border-collapse: collapse;
-        
       }
 
       .sbi-transaction-table td {
         padding: 1px 4px 0px 2px;
-        vertical-align: top;
-        border: 1px solid #000;
         vertical-align: top;
         font-size: 9px;
       }
 
       .sbi-transaction-table th {
         padding: 4px 2px 1px 2px;
-        vertical-align: top;
-        border: 1px solid #000;
         vertical-align: top;
         font-size: 10px;
       }
@@ -313,7 +310,9 @@ app.post("/api/generate-sbi-statement", (req, res) => {
           <div class="sbi-info-label">Balance as on ${
             accountInfo.balanceDate
           }</div>
-          <div class="sbi-info-value">: ${accountInfo.openingBalance}</div>
+          <div class="sbi-info-value">: ${formatToIndianDenomination(
+            accountInfo.openingBalance
+          )}</div>
         </div>
       </div>
 
@@ -346,9 +345,15 @@ app.post("/api/generate-sbi-statement", (req, res) => {
               <td class="sbi-amount">${dateFormat(txn.Date)}</td>
               <td>${txn.Narration}</td>
               <td>${txn.Ref}</td>
-              <td class="sbi-amount">${txn.Debit}</td>
-              <td class="sbi-amount">${txn.Credit}</td>
-              <td class="sbi-amount">${txn.Balance}</td>
+              <td class="sbi-amount">${formatToIndianDenomination(
+                txn.Debit
+              )}</td>
+              <td class="sbi-amount">${formatToIndianDenomination(
+                txn.Credit
+              )}</td>
+              <td class="sbi-amount">${formatToIndianDenomination(
+                txn.Balance
+              )}</td>
             </tr>
           `
             )
@@ -407,7 +412,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
 // API endpoint to generate and download the PDF
 app.post("/api/generate-sbi-statements", async (req, res) => {
   try {
-    const accountInfo = req.body.accountInf || {
+    const accountInfo = req.body.accountInfo || {
       accountName: "Mr. G CHANDRAMOULI REDDY",
       accountNumber: "00000031529681353",
       branch: "VIVEKANANDA NAGAR KUKATPALLY",
