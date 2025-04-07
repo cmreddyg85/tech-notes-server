@@ -117,7 +117,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         );
       }
 
-      const options = { day: "2-digit", month: "short", year: "numeric" };
+      const options = { day: "numeric", month: "short", year: "numeric" };
       return date.toLocaleDateString("en-GB", options);
     }
 
@@ -150,7 +150,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         padding: 0;
         font-family: Arial, sans-serif;
         background: #f5f5f5;
-        width: 143mm;
+        width: 100%;
       }
 
       .sbi-container {
@@ -165,13 +165,15 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       }
 
       .sbi-info-label {
-        width: 115px;
+        width: 108px;
         display: inline-block;
         vertical-align: top;
       }
+
       .sbi-info-value {
         display: inline-block;
       }
+
       .sbi-address-line2 {
         margin-left: 5px;
       }
@@ -201,9 +203,10 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       }
 
       .sbi-transaction-table th {
-        padding: 4px 2px 1px 2px;
+        padding: 4px 4px 1px 2px;
         vertical-align: top;
         font-size: 0.625rem;
+        line-height: 1;
       }
 
       .sbi-transaction-table .sbi-amount {
@@ -215,6 +218,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         font-size: 0.563rem;
         line-height: 1.5;
         margin-bottom: 15px;
+        text-align: justify;
       }
 
       .sbi-footer {
@@ -227,7 +231,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
     <div class="sbi-container">
       <img
         src="https://upload.wikimedia.org/wikipedia/en/5/58/State_Bank_of_India_logo.svg"
-        height="39"
+        height="38"
         style="margin-bottom: 10px; margin-left: 7px"
       />
 
