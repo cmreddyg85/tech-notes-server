@@ -117,7 +117,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         );
       }
 
-      const options = { day: "2-digit", month: "short", year: "numeric" };
+      const options = { day: "numeric", month: "short", year: "numeric" };
       return date.toLocaleDateString("en-GB", options);
     }
 
@@ -150,7 +150,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         padding: 0;
         font-family: Arial, sans-serif;
         background: #f5f5f5;
-        width: 143mm;
+        width: 100%;
       }
 
       .sbi-container {
@@ -160,12 +160,12 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       }
 
       .sbi-info-row {
-        margin-bottom: 4px;
-        font-size: 0.563rem;
+        margin-bottom: 0.313rem;
+        font-size: 0.938rem;
       }
 
       .sbi-info-label {
-        width: 115px;
+        width: 175px;
         display: inline-block;
         vertical-align: top;
       }
@@ -174,12 +174,17 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       }
       .sbi-address-line2 {
         margin-left: 5px;
+        margin-bottom: 0.313rem;
+      }
+      .sbi-address-line {
+        margin-left: 5px;
+        margin-bottom: 0.313rem;
       }
 
       .sbi-statement-period {
-        margin-top: 25px;
-        margin-bottom: 15px;
-        font-size: 0.75rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1.8rem;
+        font-size: 1.3rem;
       }
 
       table, th, td {
@@ -195,15 +200,16 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       }
 
       .sbi-transaction-table td {
-        padding: 3px 2px 0px 2px;
+        padding: 4px 4px 1px 2px;
         vertical-align: top;
-        font-size: 0.563rem;
+        font-size: 0.938rem;
       }
 
       .sbi-transaction-table th {
-        padding: 4px 2px 1px 2px;
+        padding: 4px 6px 1px 2px;
         vertical-align: top;
-        font-size: 0.625rem;
+        font-size: 1rem;
+        line-height: 1;
       }
 
       .sbi-transaction-table .sbi-amount {
@@ -211,14 +217,15 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       }
 
       .sbi-notice {
-        text-indent: 1rem;
-        font-size: 0.563rem;
+        text-indent: 1.2rem;
+        font-size: 0.938rem;
         line-height: 1.5;
-        margin-bottom: 15px;
+        margin-bottom: 1.5rem;
+        text-align: justify;
       }
 
       .sbi-footer {
-        font-size: 0.563rem;
+        font-size: 0.938rem;
       }
     </style>
   </head>
@@ -227,8 +234,8 @@ app.post("/api/generate-sbi-statement", (req, res) => {
     <div class="sbi-container">
       <img
         src="https://upload.wikimedia.org/wikipedia/en/5/58/State_Bank_of_India_logo.svg"
-        height="39"
-        style="margin-bottom: 10px; margin-left: 7px"
+        height="64"
+        style="margin-bottom: 15px; margin-left: 11px"
       />
 
       <div class="sbi-info-container">
@@ -327,7 +334,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         <thead>
           <tr>
             <th style="width: 12%; text-align: left">Txn Date</th>
-            <th style="width: 11%; text-align: left">Value Date</th>
+            <th style="width: 12%; text-align: left">Value Date</th>
             <th style="text-align: left">Description</th>
             <th style="width: 17%; text-align: left">Ref No./Cheque No.</th>
             <th style="text-align: right; width: 15%">Debit</th>
@@ -380,9 +387,9 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       format: "A4",
       border: {
         top: "15mm",
-        right: "9mm",
+        right: "13mm",
         bottom: "9mm",
-        left: "10mm",
+        left: "13mm",
       },
       timeout: 60000,
     };
