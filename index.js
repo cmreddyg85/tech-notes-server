@@ -118,7 +118,8 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       }
 
       const options = { day: "numeric", month: "short", year: "numeric" };
-      return date.toLocaleDateString("en-GB", options);
+
+      return date?.toLocaleDateString("en-GB", options) || input;
     }
 
     function formatToIndianDenomination(balance) {
@@ -408,6 +409,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       stream.pipe(res);
     });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
