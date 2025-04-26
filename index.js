@@ -409,8 +409,7 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
     //   );
     //   stream.pipe(res);
     // });
-    const browser = await playwright.chromium.launch({
-      executablePath: "/usr/bin/chromium-browser", // system path
+    const browser = await chromium.launch({
       headless: true,
     });
 
