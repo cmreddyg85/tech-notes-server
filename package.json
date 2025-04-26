@@ -8,7 +8,7 @@
     "dev": "nodemon index.js",
     "vercel-start": "node index.js",
     "postinstall": "playwright install && playwright install-deps",
-    "vercel-build": "playwright install && playwright install-deps"
+    "vercel-build": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true playwright install && playwright install-deps"
   },
   "keywords": [],
   "author": "",
