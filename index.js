@@ -1,7 +1,8 @@
 const express = require("express");
 const { get, set } = require("@vercel/blob"); // Import Vercel Blob methods
 const cors = require("cors");
-const pdf = require("html-pdf");
+// const pdf = require("html-pdf");
+const pdf = require("./utils/html-pdf");
 
 const app = express();
 app.use(express.json());
