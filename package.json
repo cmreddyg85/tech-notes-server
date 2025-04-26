@@ -7,7 +7,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "vercel-start": "node index.js",
-    "postinstall": "playwright install"
+    "postinstall": "playwright install",
+    "vercel-build": "playwright install"
   },
   "keywords": [],
   "author": "",
