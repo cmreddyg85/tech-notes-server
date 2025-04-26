@@ -97,50 +97,50 @@ app.delete("/api/feedback/:route/:index", async (req, res) => {
 
 // API endpoint to generate and download the PDF
 app.post("/api/generate-sbi-statement", (req, res) => {
-  // try {
-  // Examples
-  //console.log(formatDate("01/03/2019"));  // → "01 Mar 2019"
-  //console.log(formatDate("01-Mar-19"));   // → "01 Mar 2019"
-  function dateFormat(input) {
-    let date;
+  try {
+    // Examples
+    //console.log(formatDate("01/03/2019"));  // → "01 Mar 2019"
+    //console.log(formatDate("01-Mar-19"));   // → "01 Mar 2019"
+    function dateFormat(input) {
+      let date;
 
-    if (input.includes("/")) {
-      // Handle "01/03/2019" format
-      const [day, month, year] = input.split("/");
-      date = new Date(
-        `${year.length === 2 ? "20" + year : year}-${month}-${day}`
-      );
-    } else if (input.includes("-")) {
-      // Handle "01-Mar-19" format
-      const [day, monStr, year] = input.split("-");
-      date = new Date(
-        `${year.length === 2 ? "20" + year : year}-${monStr}-${day}`
-      );
+      if (input.includes("/")) {
+        // Handle "01/03/2019" format
+        const [day, month, year] = input.split("/");
+        date = new Date(
+          `${year.length === 2 ? "20" + year : year}-${month}-${day}`
+        );
+      } else if (input.includes("-")) {
+        // Handle "01-Mar-19" format
+        const [day, monStr, year] = input.split("-");
+        date = new Date(
+          `${year.length === 2 ? "20" + year : year}-${monStr}-${day}`
+        );
+      }
+
+      const options = { day: "numeric", month: "short", year: "numeric" };
+
+      return date?.toLocaleDateString("en-GB", options) || input;
     }
 
-    const options = { day: "numeric", month: "short", year: "numeric" };
+    function formatToIndianDenomination(balance) {
+      if (typeof balance !== "string") return balance;
+      if (balance.includes(",")) return balance;
 
-    return date?.toLocaleDateString("en-GB", options) || input;
-  }
+      const number = parseFloat(balance);
+      if (isNaN(number)) return balance;
 
-  function formatToIndianDenomination(balance) {
-    if (typeof balance !== "string") return balance;
-    if (balance.includes(",")) return balance;
+      return number.toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
 
-    const number = parseFloat(balance);
-    if (isNaN(number)) return balance;
+    const accountInfo = req.body.accountInfo;
+    const transactions = req.body.transactions;
 
-    return number.toLocaleString("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  }
-
-  const accountInfo = req.body.accountInfo;
-  const transactions = req.body.transactions;
-
-  // Direct HTML with embedded CSS
-  const htmlContent = `<!DOCTYPE html>
+    // Direct HTML with embedded CSS
+    const htmlContent = `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -381,38 +381,38 @@ app.post("/api/generate-sbi-statement", (req, res) => {
   </body>
 </html>`;
 
-  // PDF options
-  const pdfOptions = {
-    format: "A4",
-    border: {
-      top: "15mm",
-      right: "9mm",
-      bottom: "9mm",
-      left: "10mm",
-    },
-    timeout: 60000,
-  };
+    // PDF options
+    const pdfOptions = {
+      format: "A4",
+      border: {
+        top: "15mm",
+        right: "9mm",
+        bottom: "9mm",
+        left: "10mm",
+      },
+      timeout: 60000,
+    };
 
-  // Generate PDF
-  pdf.create(htmlContent, pdfOptions).toStream((err, stream) => {
-    if (err) {
-      return res.status(500).send("Error generating PDF");
-    }
+    // Generate PDF
+    pdf.create(htmlContent, pdfOptions).toStream((err, stream) => {
+      if (err) {
+        return res.status(500).send("Error generating PDF");
+      }
 
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(2, 18);
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 18);
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=${timestamp}${randomStr}.pdf`
-    );
-    stream.pipe(res);
-  });
-  // } catch (error) {
-  //   console.log(error);
-  //   res.status(500).json({ error: "Internal server error" });
-  // }
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${timestamp}${randomStr}.pdf`
+      );
+      stream.pipe(res);
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Internal server error", err: error });
+  }
 });
 
 // Start the server
