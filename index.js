@@ -2,7 +2,6 @@ const express = require("express");
 const { get, set } = require("@vercel/blob"); // Import Vercel Blob methods
 const cors = require("cors");
 const pdf = require("./utils/html-pdf");
-const { chromium } = require("playwright");
 
 const app = express();
 app.use(express.json());
@@ -96,7 +95,7 @@ app.delete("/api/feedback/:route/:index", async (req, res) => {
 });
 
 // API endpoint to generate and download the PDF
-app.post("/api/generate-sbi-statement", async (req, res) => {
+app.post("/api/generate-sbi-statement", (req, res) => {
   try {
     // Examples
     //console.log(formatDate("01/03/2019"));  // → "01 Mar 2019"
@@ -381,59 +380,37 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
   </body>
 </html>`;
 
-    // // PDF options
-    // const pdfOptions = {
-    //   format: "A4",
-    //   border: {
-    //     top: "15mm",
-    //     right: "9mm",
-    //     bottom: "9mm",
-    //     left: "10mm",
-    //   },
-    //   timeout: 60000,
-    // };
-
-    // // Generate PDF
-    // pdf.create(htmlContent, pdfOptions).toStream((err, stream) => {
-    //   if (err) {
-    //     return res.status(500).send("Error generating PDF");
-    //   }
-
-    //   const timestamp = Date.now();
-    //   const randomStr = Math.random().toString(36).substring(2, 18);
-
-    //   res.setHeader("Content-Type", "application/pdf");
-    //   res.setHeader(
-    //     "Content-Disposition",
-    //     `attachment; filename=${timestamp}${randomStr}.pdf`
-    //   );
-    //   stream.pipe(res);
-    // });
-    const browser = await chromium.launch({
-      headless: true,
-    });
-
-    const page = await browser.newPage();
-    // const htmlContent = "<h1>Hello World with Playwright!</h1>";
-
-    await page.setContent(htmlContent);
-
-    const pdfBuffer = await page.pdf({
+    // PDF options
+    const pdfOptions = {
       format: "A4",
-      margin: { top: "15mm", right: "9mm", bottom: "9mm", left: "10mm" },
+      border: {
+        top: "15mm",
+        right: "9mm",
+        bottom: "9mm",
+        left: "10mm",
+      },
+      timeout: 60000,
+    };
+
+    // Generate PDF
+    pdf.create(htmlContent, pdfOptions).toStream((err, stream) => {
+      if (err) {
+        return res.status(500).send("Error generating PDF");
+      }
+
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 18);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${timestamp}${randomStr}.pdf`
+      );
+      stream.pipe(res);
     });
-
-    await browser.close();
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="generated.pdf"`
-    );
-    res.send(pdfBuffer);
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error: "Internal server error", err: error });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
