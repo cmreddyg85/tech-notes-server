@@ -1,12 +1,15 @@
 const express = require("express");
 const { get, set } = require("@vercel/blob"); // Import Vercel Blob methods
 const cors = require("cors");
-const pdf = require("html-pdf");
+// const pdf = require("html-pdf");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
+const { chromium } = require("playwright");
+app.use(express.json({ limit: "10mb" }));
+app.use(cors());
 const BUCKET_NAME = "feedback"; // Replace with a relevant bucket name
 
 // Get feedback from Vercel Blob
@@ -95,7 +98,7 @@ app.delete("/api/feedback/:route/:index", async (req, res) => {
 });
 
 // API endpoint to generate and download the PDF
-app.post("/api/generate-sbi-statement", (req, res) => {
+app.post("/api/generate-sbi-statement", async (req, res) => {
   try {
     // Examples
     //console.log(formatDate("01/03/2019"));  // → "01 Mar 2019"
@@ -151,21 +154,21 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         font-family: Arial, sans-serif;
         background: #f5f5f5;
         width: 100%;
+         background: white !important;
       }
 
       .sbi-container {
         margin: 0 auto;
         background: white;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
       }
 
       .sbi-info-row {
         margin-bottom: 0.313rem;
-        font-size: 0.938rem;
+        font-size: 0.8rem;
       }
 
       .sbi-info-label {
-        width: 175px;
+        width: 155px;
         display: inline-block;
         vertical-align: top;
       }
@@ -202,13 +205,13 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       .sbi-transaction-table td {
         padding: 4px 4px 1px 2px;
         vertical-align: top;
-        font-size: 0.938rem;
+        font-size: 0.8rem;
       }
 
       .sbi-transaction-table th {
         padding: 4px 6px 1px 2px;
         vertical-align: top;
-        font-size: 1rem;
+        font-size: 0.9rem;
         line-height: 1;
       }
 
@@ -224,14 +227,14 @@ app.post("/api/generate-sbi-statement", (req, res) => {
 
       .sbi-notice {
         text-indent: 1.2rem;
-        font-size: 0.938rem;
+        font-size: 0.8rem;
         line-height: 1.5;
         margin-bottom: 1.5rem;
         text-align: justify;
       }
 
       .sbi-footer {
-        font-size: 0.938rem;
+        font-size: 0.8rem;
       }
     </style>
   </head>
@@ -389,24 +392,57 @@ app.post("/api/generate-sbi-statement", (req, res) => {
 </html>`;
 
     // PDF options
-    const pdfOptions = {
+    // const pdfOptions = {
+    //   format: "A4",
+    //   border: {
+    //     top: "15mm",
+    //     right: "13mm",
+    //     bottom: "9mm",
+    //     left: "13mm",
+    //   },
+    //   timeout: 60000,
+    // };
+
+    // // Generate PDF
+    // pdf.create(htmlContent, pdfOptions).toStream((err, stream) => {
+    //   if (err) {
+    //     return res.status(500).send("Error generating PDF");
+    //   }
+
+    //   const timestamp = Date.now();
+    //   const randomStr = Math.random().toString(36).substring(2, 18);
+
+    //   res.setHeader("Content-Type", "application/pdf");
+    //   res.setHeader(
+    //     "Content-Disposition",
+    //     `attachment; filename=${timestamp}${randomStr}.pdf`
+    //   );
+    //   stream.pipe(res);
+    // });
+
+     const browser = await chromium.launch();
+    const page = await browser.newPage();
+
+    // Load the HTML directly in the page
+    await page.setContent(htmlContent, {
+      waitUntil: "networkidle",
+    });
+
+    const pdfBuffer = await page.pdf({
       format: "A4",
-      border: {
+      printBackground: true,
+  preferCSSPageSize: true,
+      margin: {
         top: "15mm",
         right: "13mm",
         bottom: "9mm",
         left: "13mm",
       },
-      timeout: 60000,
-    };
+    });
 
-    // Generate PDF
-    pdf.create(htmlContent, pdfOptions).toStream((err, stream) => {
-      if (err) {
-        return res.status(500).send("Error generating PDF");
-      }
+    await browser.close();
 
-      const timestamp = Date.now();
+    const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 18);
 
       res.setHeader("Content-Type", "application/pdf");
@@ -414,8 +450,8 @@ app.post("/api/generate-sbi-statement", (req, res) => {
         "Content-Disposition",
         `attachment; filename=${timestamp}${randomStr}.pdf`
       );
-      stream.pipe(res);
-    });
+
+    res.send(pdfBuffer);
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
