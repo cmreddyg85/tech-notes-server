@@ -118,7 +118,7 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       }
 
       const options = { day: "numeric", month: "short", year: "numeric" };
-      return date.toLocaleDateString("en-GB", options);
+      return date?.toLocaleDateString("en-GB", options) || input;
     }
 
     function formatToIndianDenomination(balance) {
@@ -214,6 +214,12 @@ app.post("/api/generate-sbi-statement", (req, res) => {
 
       .sbi-transaction-table .sbi-amount {
         text-align: right;
+      }
+
+      .sbi-transaction-table .sbi-desc {
+        word-break: break-word; /* Breaks words only when necessary */
+        word-break: break-all;  /* Breaks words at any character */
+        word-wrap: break-word;
       }
 
       .sbi-notice {
@@ -333,12 +339,12 @@ app.post("/api/generate-sbi-statement", (req, res) => {
       <table class="sbi-transaction-table">
         <thead>
           <tr>
-            <th style="width: 12%; text-align: left">Txn Date</th>
-            <th style="width: 12%; text-align: left">Value Date</th>
-            <th style="text-align: left">Description</th>
+            <th style="width: 10%; text-align: left">Txn Date</th>
+            <th style="width: 10%; text-align: left">Value Date</th>
+            <th style="width: 30%; text-align: left">Description</th>
             <th style="width: 17%; text-align: left">Ref No./Cheque No.</th>
-            <th style="text-align: right; width: 15%">Debit</th>
-            <th style="text-align: right; width: 15%">Credit</th>
+            <th style="text-align: right; width: 10%">Debit</th>
+            <th style="text-align: right; width: 10%">Credit</th>
             <th style="text-align: right; width: 17%">Balance</th>
           </tr>
         </thead>
@@ -349,8 +355,8 @@ app.post("/api/generate-sbi-statement", (req, res) => {
             <tr>
               <td class="sbi-amount">${dateFormat(txn.Date)}</td>
               <td class="sbi-amount">${dateFormat(txn.Date)}</td>
-              <td>${txn.Narration}</td>
-              <td>${txn.Ref}</td>
+              <td class="sbi-desc">${txn.Narration}</td>
+              <td class="sbi-desc">${txn.Ref}</td>
               <td class="sbi-amount">${formatToIndianDenomination(
                 txn.Debit
               )}</td>
