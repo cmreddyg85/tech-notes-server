@@ -164,11 +164,11 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
 
       .sbi-info-row {
         margin-bottom: 0.313rem;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
       }
 
       .sbi-info-label {
-        width: 155px;
+        width: 144px;
         display: inline-block;
         vertical-align: top;
       }
@@ -185,9 +185,9 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
       }
 
       .sbi-statement-period {
-        margin-top: 2.5rem;
-        margin-bottom: 1.8rem;
-        font-size: 1.3rem;
+        margin-top: 2.2rem;
+        margin-bottom: 1.4rem;
+        font-size: 1rem;
       }
 
       table, th, td {
@@ -205,13 +205,13 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
       .sbi-transaction-table td {
         padding: 4px 4px 1px 2px;
         vertical-align: top;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
       }
 
       .sbi-transaction-table th {
         padding: 4px 6px 1px 2px;
         vertical-align: top;
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         line-height: 1;
       }
 
@@ -227,14 +227,14 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
 
       .sbi-notice {
         text-indent: 1.2rem;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         line-height: 1.5;
         margin-bottom: 1.5rem;
         text-align: justify;
       }
 
       .sbi-footer {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
       }
     </style>
   </head>
@@ -243,8 +243,8 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
     <div class="sbi-container">
       <img
         src="https://upload.wikimedia.org/wikipedia/en/5/58/State_Bank_of_India_logo.svg"
-        height="64"
-        style="margin-bottom: 15px; margin-left: 11px"
+        height="51"
+        style="margin-bottom: 15px; margin-left: 10px"
       />
 
       <div class="sbi-info-container">
@@ -344,10 +344,10 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
           <tr>
             <th style="width: 10%; text-align: left">Txn Date</th>
             <th style="width: 10%; text-align: left">Value Date</th>
-            <th style="width: 30%; text-align: left">Description</th>
+            <th style="width: 22%; text-align: left">Description</th>
             <th style="width: 17%; text-align: left">Ref No./Cheque No.</th>
-            <th style="text-align: right; width: 10%">Debit</th>
-            <th style="text-align: right; width: 10%">Credit</th>
+            <th style="text-align: right;">Debit</th>
+            <th style="text-align: right;">Credit</th>
             <th style="text-align: right; width: 17%">Balance</th>
           </tr>
         </thead>
