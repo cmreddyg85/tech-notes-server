@@ -420,7 +420,7 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
     //   stream.pipe(res);
     // });
 
-     const browser = await chromium.launch();
+    const browser = await chromium.launch();
     const page = await browser.newPage();
 
     // Load the HTML directly in the page
@@ -431,7 +431,7 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
-  preferCSSPageSize: true,
+      preferCSSPageSize: true,
       margin: {
         top: "15mm",
         right: "13mm",
@@ -443,17 +443,17 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
     await browser.close();
 
     const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 18);
+    const randomStr = Math.random().toString(36).substring(2, 18);
 
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename=${timestamp}${randomStr}.pdf`
-      );
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${timestamp}${randomStr}.pdf`
+    );
 
     res.send(pdfBuffer);
   } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: `Internal server error-${error}` });
   }
 });
 
