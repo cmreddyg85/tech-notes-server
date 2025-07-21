@@ -420,7 +420,9 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
     //   stream.pipe(res);
     // });
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({
+      headless: true,
+    });
     const page = await browser.newPage();
 
     // Load the HTML directly in the page
