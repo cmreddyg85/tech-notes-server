@@ -194,6 +194,10 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
         border: 1px solid black;
         border-collapse: collapse;
       }
+      
+      tr {
+        page-break-inside: avoid; /* prevent row split across pages */
+      }
 
       .sbi-transaction-table {
         width: 100%;
