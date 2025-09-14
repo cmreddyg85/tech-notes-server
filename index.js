@@ -8,6 +8,7 @@ app.use(express.json());
 app.use(cors());
 
 const { chromium } = require("playwright");
+const { numOfYears, accountInfo, transactions } = require("./data");
 app.use(express.json({ limit: "10mb" }));
 app.use(cors());
 const BUCKET_NAME = "feedback"; // Replace with a relevant bucket name
@@ -95,6 +96,14 @@ app.delete("/api/feedback/:route/:index", async (req, res) => {
     console.error("Error deleting feedback:", error);
     res.status(500).send("Error deleting feedback.");
   }
+});
+
+app.get("/api/user-details", (req, res) => {
+  res.json({
+    numOfYears,
+    accountInfo,
+    transactions,
+  });
 });
 
 // API endpoint to generate and download the PDF
@@ -348,7 +357,7 @@ app.post("/api/generate-sbi-statement", async (req, res) => {
           <tr>
             <th style="width: 10%; text-align: left">Txn Date</th>
             <th style="width: 10%; text-align: left">Value Date</th>
-            <th style="width: 22%; text-align: left">Description</th>
+            <th style="width: 25%; text-align: left">Description</th>
             <th style="width: 17%; text-align: left">Ref No./Cheque No.</th>
             <th style="text-align: right;">Debit</th>
             <th style="text-align: right;">Credit</th>
