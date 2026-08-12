@@ -7,6 +7,12 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 module.exports = {
   escapeHtml,
+  sleep,
 };
