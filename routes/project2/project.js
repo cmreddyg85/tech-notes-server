@@ -930,16 +930,29 @@ router.post("/generate-idbi-excel", async (req, res) => {
     const { accountInfo, transactions } = req.body;
 
     // --- Defaults (similar to your sample) ---
-    const maskedAccount = accountInfo?.accountNumber || "0436XXXXXXXX5744";
-    const accountName = accountInfo?.name || "G JANARDHAN";
-    const fromDate = accountInfo?.fromDate || "02-Aug-2025";
-    const toDate = accountInfo?.toDate || "01-Aug-2026";
+    const accountNumber = accountInfo?.accountNumber || "";
+
+    const maskedAccount =
+      accountNumber.length > 8
+        ? accountNumber.slice(0, 4) +
+          "X".repeat(accountNumber.length - 8) +
+          accountNumber.slice(-4)
+        : accountNumber;
+    const accountName = accountInfo?.accountName || "";
+    const fromDate = accountInfo?.fromDate || "";
+    const toDate = accountInfo?.toDate || "";
 
     // --- Create workbook and worksheet ---
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Account Statement", {
       views: [{ showGridLines: false }],
     });
+
+    // Merge cells for logo area
+    worksheet.mergeCells("A1:B1");
+
+    // Merge cells for title area
+    worksheet.mergeCells("C1:I1");
 
     // --- 1. Insert Logo (top-left) ---
     // Base64 image provided (PNG)
@@ -957,66 +970,55 @@ router.post("/generate-idbi-excel", async (req, res) => {
     // Insert image into worksheet at cell A1 (with scaling)
     worksheet.addImage(imageId, {
       tl: { col: 0, row: 0 }, // top-left of A1
-      ext: { width: 100, height: 40 }, // adjust as needed
+      ext: { width: 230, height: 80 }, // adjust as needed
     });
 
-    // --- 2. Header rows (with merged cells) ---
-
-    // Row 1: "Account Statement for ..." (skip row 0 because image takes it)
-    // We'll start from row 2 to leave space for image
-    // But we can merge from A2 to I2, but image is in A1, so we can start at row 1 with offset.
-    // For simplicity, start at row 1 after image? Actually image placed at A1, so row1 cell content may overlap.
-    // Better: place image at A1, then start text from row 2.
-    // We'll set row 1 to empty (or keep for image), and start text from row 2.
-
-    // To avoid overlap, we'll insert image at B1? Better: place image at A1 with fixed size, and text rows from 1 onward but with enough height.
-    // Let's set row 1 height to accommodate image, and put title in row 1 as well (but image will overlay).
-    // Simpler: put image at A1 and make row 1 height 40, then title in row 2.
-    // We'll use row 2 for title, row 3 empty, row 4 for account id, etc.
-
-    // Actually, we can place image at A1 and then merge A2:I2 for title, etc.
-    // Ensure row heights are set.
-
     // Set row 1 height (for image)
-    worksheet.getRow(1).height = 40;
+    worksheet.getRow(1).height = 60;
 
     // Row 2: Title
-    const titleRow = worksheet.getRow(2);
-    titleRow.getCell(1).value = `Account Statement for ${maskedAccount}`;
-    worksheet.mergeCells(`A2:I2`);
-    titleRow.font = { bold: true, size: 14 };
-    titleRow.alignment = { horizontal: "center", vertical: "middle" };
+    const titleCell = worksheet.getCell("C1");
+    titleCell.value = `Account Statement for ${maskedAccount}`;
+    titleCell.font = {
+      bold: true,
+      size: 14,
+    };
+
+    titleCell.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+    };
 
     // Row 3: empty
-    const row3 = worksheet.getRow(3);
+    const row3 = worksheet.getRow(2);
 
     // Row 4: Account Id
-    const row4 = worksheet.getRow(4);
+    const row4 = worksheet.getRow(3);
     row4.getCell(1).value = `Account Id ${maskedAccount}: ${accountName}`;
     worksheet.mergeCells(`A4:I4`);
     row4.font = { bold: true };
-    row4.alignment = { horizontal: "center" };
+    row4.alignment = { horizontal: "left" };
 
     // Row 5: "Search Criteria"
-    const row5 = worksheet.getRow(5);
+    const row5 = worksheet.getRow(4);
     row5.getCell(1).value = "Search Criteria";
     worksheet.mergeCells(`A5:I5`);
     row5.font = { bold: true };
-    row5.alignment = { horizontal: "center" };
+    row5.alignment = { horizontal: "left" };
 
     // Row 6: Date range
-    const row6 = worksheet.getRow(6);
+    const row6 = worksheet.getRow(5);
     row6.getCell(1).value =
       `Transaction Date From : ${fromDate} to : ${toDate}`;
     worksheet.mergeCells(`A6:I6`);
     row6.font = { bold: true };
-    row6.alignment = { horizontal: "center" };
+    row6.alignment = { horizontal: "left" };
 
     // Row 7: empty
-    const row7 = worksheet.getRow(7);
+    const row7 = worksheet.getRow(6);
 
     // --- 3. Table header (Row 8) with yellow background ---
-    const headerRow = worksheet.getRow(8);
+    const headerRow = worksheet.getRow(7);
     headerRow.values = [
       "Srl",
       "Txn Date",
@@ -1047,15 +1049,15 @@ router.post("/generate-idbi-excel", async (req, res) => {
 
     // Set column widths
     worksheet.columns = [
-      { header: "Srl", key: "srl", width: 8 },
-      { header: "Txn Date", key: "txnDate", width: 22 },
-      { header: "Value Date", key: "valueDate", width: 14 },
-      { header: "Description", key: "description", width: 50 },
-      { header: "Cheque No", key: "chequeNo", width: 12 },
-      { header: "CR/DR", key: "crdr", width: 8 },
-      { header: "CCY", key: "ccy", width: 6 },
-      { header: "Amount (INR)", key: "amount", width: 16 },
-      { header: "Balance (INR)", key: "balance", width: 16 },
+      { key: "srl", width: 8 },
+      { key: "txnDate", width: 22 },
+      { key: "valueDate", width: 14 },
+      { key: "description", width: 50 },
+      { key: "chequeNo", width: 12 },
+      { key: "crdr", width: 8 },
+      { key: "ccy", width: 6 },
+      { key: "amount", width: 16 },
+      { key: "balance", width: 16 },
     ];
 
     // --- 4. Data rows ---
