@@ -1,11 +1,12 @@
 const emailData = [
   {
     subject:
-      "Bank Account Statement – Pothabathula S Ram Kumar – XXXX5649 – 01/01/2022 to 31/12/20221",
+      "Bank Account Statement – Pothabathula S Ram Kumar – XXXX5649 – 01/01/2022 to 31/12/2022",
     rowDate: null,
     senderName: "IOB eServices",
     senderEmail: "eservices@iob.in",
     headerDateTime: null,
+    logo: "https://lh3.googleusercontent.com/a-/ALV-UjW8d_wC5A5sLI8PQp9NeoyI_JocPZyhEW028Ee0qmfjfuSVF7UR=s80-p",
     //popup details
     date: null,
     mailedBy: "iob.in",
