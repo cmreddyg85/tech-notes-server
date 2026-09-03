@@ -1,4 +1,8 @@
 const express = require("express");
+const fs = require("node:fs/promises");
+const os = require("node:os");
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 
 const {
   numOfYears,
@@ -9,6 +13,111 @@ const {
 const router = express.Router();
 const { chromium } = require("playwright");
 const { icons } = require("./icons");
+const { sleep } = require("../../utils/utils");
+const { generateSbiTransactions } = require("./generate");
+
+function parseDateInput(dateStr = "") {
+  const trimmed = dateStr.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.includes("/")) {
+    const [day, month, year] = trimmed.split("/").map(Number);
+
+    if (!day || !month || !year) {
+      return null;
+    }
+
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+
+  if (trimmed.includes("-")) {
+    const [first, second, third] = trimmed.split("-");
+
+    if (/^\d+$/.test(second)) {
+      const day = Number(first);
+      const month = Number(second);
+      const year = Number(third);
+
+      if (!day || !month || !year) {
+        return null;
+      }
+
+      return new Date(year, month - 1, day, 0, 0, 0, 0);
+    }
+
+    const parsedDate = new Date(trimmed);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return null;
+    }
+
+    parsedDate.setHours(0, 0, 0, 0);
+
+    return parsedDate;
+  }
+
+  const parsedDate = new Date(trimmed);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  parsedDate.setHours(0, 0, 0, 0);
+
+  return parsedDate;
+}
+
+function formatSlashDate(date) {
+  const pad = (value) => String(value).padStart(2, "0");
+
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+}
+
+function getEndOfDay(date) {
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+  return endOfDay;
+}
+
+function getDateRanges(fromDate, toDate) {
+  const endDate = new Date(toDate);
+  endDate.setHours(23, 59, 59, 999);
+
+  const ranges = [];
+  let currentStart = new Date(fromDate);
+  currentStart.setHours(0, 0, 0, 0);
+
+  while (currentStart <= endDate) {
+    const tentativeEnd = new Date(currentStart);
+    tentativeEnd.setFullYear(tentativeEnd.getFullYear() + 1);
+    tentativeEnd.setDate(tentativeEnd.getDate() - 1);
+    tentativeEnd.setHours(0, 0, 0, 0);
+
+    const currentEnd =
+      tentativeEnd > endDate ? new Date(endDate) : tentativeEnd;
+
+    ranges.push({
+      from: new Date(currentStart),
+      to: currentEnd,
+    });
+
+    const nextStart = new Date(currentEnd);
+    nextStart.setDate(nextStart.getDate() + 1);
+    nextStart.setHours(0, 0, 0, 0);
+    currentStart = nextStart;
+  }
+
+  return ranges;
+}
+
+function sanitizeFileName(value = "statement") {
+  return (
+    value.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "") || "statement"
+  );
+}
 
 router.get("/sbi-user-details", (req, res) => {
   res.json({
@@ -18,8 +127,42 @@ router.get("/sbi-user-details", (req, res) => {
   });
 });
 
+router.post("/sbi-generate-transactions", async (req, res) => {
+  try {
+    const { downloadJson = false, ...payload } = req.body || {};
+    const result = generateSbiTransactions(payload);
+
+    if (result.invalidDates.length > 0) {
+      res.status(400).json({
+        invalidDates: result.invalidDates,
+      });
+      return;
+    }
+
+    if (downloadJson) {
+      const fileName = `final-${(
+        result.accountInfo.customerName || "transactions"
+      )
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-+|-+$/g, "")}.json`;
+
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${fileName}"`,
+      );
+      res.send(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: `Internal server error - ${error.message}` });
+  }
+});
+
 // API endpoint to generate and download the PDF
-router.post("/generate-sbi-statement", async (req, res) => {
+async function generateSbiStatement(req, res) {
   try {
     // Helper: format date (not strictly needed but kept for consistency)
     function dateFormat(input = "") {
@@ -126,7 +269,9 @@ router.post("/generate-sbi-statement", async (req, res) => {
         <tr>
           <td class="center">${tx.Date || ""}</td>
           <td class="center">${tx.Date || ""}</td>
-          <td class="details-cell">${tx.Narration || ""}</td>
+          <td class="details-cell">
+            ${tx.Narration || ""} 009${Math.floor(100000000 + Math.random() * 900000000)} AT ${accountInfo.branchCode} ${accountInfo.branchName}
+          </td>
           <td class="center">${"-"}</td>
           <td class="center">${debit || "-"}</td>
           <td class="center">${credit || "-"}</td>
@@ -139,7 +284,9 @@ router.post("/generate-sbi-statement", async (req, res) => {
     const customerName = accountInfo.customerName || "";
     const email = accountInfo.email || "";
     const address = accountInfo.address || "";
-    const dateOfStatement = accountInfo.dateOfStatement || "";
+    const dateOfStatement =
+      accountInfo.dateOfStatement?.trim() ||
+      new Date().toLocaleDateString("en-GB").replace(/\//g, "-");
     const clearBalance = accountInfo.clearBalance || "0.00";
     const unclearedAmount = accountInfo.unclearedAmount || "0.00";
     const modBalance = accountInfo.modBalance || "0.00";
@@ -919,18 +1066,180 @@ router.post("/generate-sbi-statement", async (req, res) => {
 
     await browser.close();
 
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(2, 18);
+    const now = new Date();
+
+    const date =
+      String(now.getDate()).padStart(2, "0") +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      now.getFullYear();
+
+    const time =
+      String(now.getHours()).padStart(2, "0") +
+      String(now.getMinutes()).padStart(2, "0") +
+      String(now.getSeconds()).padStart(2, "0");
+
+    const fileName = `AccountStatement_${date}_${time}.pdf`;
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=${timestamp}${randomStr}.pdf`,
-    );
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
 
     res.send(pdfBuffer);
   } catch (error) {
     res.status(500).json({ error: `Internal server error-${error}` });
+  }
+}
+
+router.post("/generate-sbi-statement", generateSbiStatement);
+
+async function createSbiStatementPdf(accountInfoPayload, transactionList) {
+  return new Promise((resolve, reject) => {
+    const fakeRes = {
+      setHeader() {},
+      send(pdfBuffer) {
+        resolve(pdfBuffer);
+      },
+      status(statusCode) {
+        this.statusCode = statusCode;
+        return this;
+      },
+      json(payload) {
+        reject(
+          new Error(
+            payload?.error ||
+              `Failed to generate statement PDF (${this.statusCode || 500})`,
+          ),
+        );
+      },
+    };
+
+    Promise.resolve(
+      generateSbiStatement(
+        {
+          body: {
+            accountInfo: accountInfoPayload,
+            transactions: transactionList,
+          },
+        },
+        fakeRes,
+      ),
+    ).catch(reject);
+  });
+}
+
+router.post("/sbi-download-statements", async (req, res) => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sbi-statements-"));
+
+  try {
+    const { accountInfo, transactions, fromDate, toDate } = req.body || {};
+    let isFirstCall = true;
+
+    if (
+      !accountInfo ||
+      !Array.isArray(transactions) ||
+      transactions.length === 0
+    ) {
+      res.status(400).json({
+        error: "accountInfo and transactions are required",
+      });
+      return;
+    }
+
+    const parsedFromDate = parseDateInput(fromDate);
+
+    if (!parsedFromDate || Number.isNaN(parsedFromDate.getTime())) {
+      res.status(400).json({
+        error: "fromDate is required in a valid date format",
+      });
+      return;
+    }
+
+    const endDate = toDate ? parseDateInput(toDate) : new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    if (parsedFromDate > endDate) {
+      res.status(400).json({
+        error: "fromDate cannot be in the future",
+      });
+      return;
+    }
+
+    const sortedTransactions = [...transactions].sort((first, second) => {
+      return parseDateInput(first.Date) - parseDateInput(second.Date);
+    });
+
+    const dateRanges = getDateRanges(parsedFromDate, endDate);
+    const pdfPaths = [];
+    const accountNameSlug = sanitizeFileName(
+      accountInfo.customerName || "account",
+    );
+
+    for (const range of dateRanges) {
+      const rangeStart = new Date(range.from);
+      const rangeEnd = getEndOfDay(range.to);
+
+      const yearlyTransactions = sortedTransactions.filter((transaction) => {
+        const transactionDate = parseDateInput(transaction.Date);
+        return transactionDate >= rangeStart && transactionDate <= rangeEnd;
+      });
+
+      const statementAccountInfo = {
+        ...accountInfo,
+        fromDate: formatSlashDate(range.from),
+        toDate: formatSlashDate(range.to),
+      };
+
+      const delay = isFirstCall ? 0 : Math.floor(Math.random() * 6000) + 10000;
+      await sleep(delay);
+      isFirstCall = false;
+
+      const pdfBuffer = await createSbiStatementPdf(
+        statementAccountInfo,
+        yearlyTransactions,
+      );
+
+      const formatDatePart = (date) => {
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, "0");
+        const dd = String(date.getDate()).padStart(2, "0");
+
+        return `${yyyy}${mm}${dd}`;
+      };
+
+      const currentDateTime = new Date()
+        .toString()
+        .replaceAll(":", "_")
+        .replaceAll(" ", "_");
+
+      const pdfFileName = `Account_Statement_${formatDatePart(rangeStart)}_${formatDatePart(rangeEnd)}_${currentDateTime}.pdf`;
+
+      const pdfPath = path.join(tempRoot, pdfFileName);
+
+      await fs.writeFile(pdfPath, pdfBuffer);
+      pdfPaths.push(pdfPath);
+    }
+
+    const zipFileName = `${accountNameSlug}-statements.zip`;
+    const zipPath = path.join(tempRoot, zipFileName);
+    const zipResult = spawnSync("zip", ["-j", zipPath, ...pdfPaths], {
+      encoding: "utf8",
+    });
+
+    if (zipResult.status !== 0) {
+      throw new Error(zipResult.stderr || "Unable to create statements zip");
+    }
+
+    const zipBuffer = await fs.readFile(zipPath);
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${zipFileName}"`,
+    );
+    res.send(zipBuffer);
+  } catch (error) {
+    res.status(500).json({ error: `Internal server error - ${error.message}` });
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
 
