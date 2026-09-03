@@ -1287,7 +1287,151 @@ router.post(
         req.body?.details || {},
       );
 
-      res.json(result);
+      const downloadJson =
+        req.body?.downloadJson === true || req.body?.downloadJson === "true";
+      const downloadPDF =
+        req.body?.downloadPDF === true || req.body?.downloadPDF === "true";
+
+      if (!downloadJson && !downloadPDF) {
+        res.json(result);
+        return;
+      }
+
+      let parsedFromDate;
+      let rangeEnd;
+
+      if (downloadPDF) {
+        parsedFromDate = parseDateInput(req.body?.fromDate);
+
+        if (!parsedFromDate || Number.isNaN(parsedFromDate.getTime())) {
+          res.status(400).json({
+            error: "fromDate is required in a valid date format",
+          });
+          return;
+        }
+
+        const parsedToDate = req.body?.toDate
+          ? parseDateInput(req.body.toDate)
+          : new Date();
+
+        if (!parsedToDate || Number.isNaN(parsedToDate.getTime())) {
+          res.status(400).json({
+            error: "toDate is not a valid date format",
+          });
+          return;
+        }
+
+        rangeEnd = getEndOfDay(parsedToDate);
+
+        if (parsedFromDate > rangeEnd) {
+          res.status(400).json({
+            error: "fromDate cannot be after toDate",
+          });
+          return;
+        }
+      }
+
+      const generated = generateSbiTransactions(result);
+
+      if (generated.invalidDates.length > 0) {
+        res.status(400).json({
+          invalidDates: generated.invalidDates,
+        });
+        return;
+      }
+
+      const nameSlug = sanitizeFileName(
+        generated.accountInfo.customerName || "statement",
+      );
+      const jsonFileName = `final-${nameSlug}.json`;
+      const jsonContent = JSON.stringify(generated, null, 2);
+
+      let pdfBuffer;
+      let pdfFileName;
+
+      if (downloadPDF) {
+        const filteredTransactions = generated.transactions.filter(
+          (transaction) => {
+            const transactionDate = parseDateInput(transaction.Date);
+
+            return (
+              transactionDate &&
+              transactionDate >= parsedFromDate &&
+              transactionDate <= rangeEnd
+            );
+          },
+        );
+
+        const statementAccountInfo = {
+          ...generated.accountInfo,
+          fromDate: req.body.fromDate,
+          toDate: req.body.toDate || formatSlashDate(rangeEnd),
+        };
+
+        pdfBuffer = await createSbiStatementPdf(
+          statementAccountInfo,
+          filteredTransactions,
+        );
+        pdfFileName = `${nameSlug}.pdf`;
+      }
+
+      if (downloadJson && downloadPDF) {
+        const tempRoot = await fs.mkdtemp(
+          path.join(os.tmpdir(), "sbi-extract-"),
+        );
+
+        try {
+          const jsonPath = path.join(tempRoot, jsonFileName);
+          const pdfPath = path.join(tempRoot, pdfFileName);
+
+          await fs.writeFile(jsonPath, jsonContent);
+          await fs.writeFile(pdfPath, pdfBuffer);
+
+          const zipFileName = `${nameSlug}-statement.zip`;
+          const zipPath = path.join(tempRoot, zipFileName);
+          const zipResult = spawnSync(
+            "zip",
+            ["-j", zipPath, jsonPath, pdfPath],
+            { encoding: "utf8" },
+          );
+
+          if (zipResult.status !== 0) {
+            throw new Error(
+              zipResult.stderr || "Unable to create statement zip",
+            );
+          }
+
+          const zipBuffer = await fs.readFile(zipPath);
+
+          res.setHeader("Content-Type", "application/zip");
+          res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="${zipFileName}"`,
+          );
+          res.send(zipBuffer);
+        } finally {
+          await fs.rm(tempRoot, { recursive: true, force: true });
+        }
+
+        return;
+      }
+
+      if (downloadPDF) {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${pdfFileName}"`,
+        );
+        res.send(pdfBuffer);
+        return;
+      }
+
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${jsonFileName}"`,
+      );
+      res.send(jsonContent);
     } catch (error) {
       if (
         error.code === "PASSWORD_REQUIRED" ||
