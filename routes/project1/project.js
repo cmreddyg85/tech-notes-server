@@ -12,9 +12,12 @@ const {
 
 const router = express.Router();
 const { chromium } = require("playwright");
+const { PDFDocument } = require("@cantoo/pdf-lib");
+const multer = require("multer");
 const { icons } = require("./icons");
 const { sleep } = require("../../utils/utils");
 const { generateSbiTransactions } = require("./generate");
+const { extractSbiAccountInfo } = require("./extract");
 
 function parseDateInput(dateStr = "") {
   const trimmed = dateStr.trim();
@@ -280,6 +283,11 @@ async function generateSbiStatement(req, res) {
       `;
     });
 
+    const lastBalance =
+      formatToIndianDenomination(
+        transactions?.[transactions.length - 1]?.Balance,
+      ) || "0.00";
+
     // Prepare dynamic values
     const customerName = accountInfo.customerName || "";
     const email = accountInfo.email || "";
@@ -287,7 +295,7 @@ async function generateSbiStatement(req, res) {
     const dateOfStatement =
       accountInfo.dateOfStatement?.trim() ||
       new Date().toLocaleDateString("en-GB").replace(/\//g, "-");
-    const clearBalance = accountInfo.clearBalance || "0.00";
+    const clearBalance = `${lastBalance}CR`;
     const unclearedAmount = accountInfo.unclearedAmount || "0.00";
     const modBalance = accountInfo.modBalance || "0.00";
     const lien = accountInfo.lien || "0.00";
@@ -1066,6 +1074,19 @@ async function generateSbiStatement(req, res) {
 
     await browser.close();
 
+    let outputPdfBuffer = pdfBuffer;
+
+    if (accountInfo.password?.trim()) {
+      const pdfDoc = await PDFDocument.load(pdfBuffer);
+
+      pdfDoc.encrypt({
+        userPassword: accountInfo.password,
+        ownerPassword: accountInfo.password,
+      });
+
+      outputPdfBuffer = Buffer.from(await pdfDoc.save());
+    }
+
     const now = new Date();
 
     const date =
@@ -1083,7 +1104,7 @@ async function generateSbiStatement(req, res) {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
 
-    res.send(pdfBuffer);
+    res.send(outputPdfBuffer);
   } catch (error) {
     res.status(500).json({ error: `Internal server error-${error}` });
   }
@@ -1242,5 +1263,47 @@ router.post("/sbi-download-statements", async (req, res) => {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+const statementUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+});
+
+router.post(
+  "/sbi-extract-statement",
+  statementUpload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res
+          .status(400)
+          .json({ error: "A PDF file is required (field name: file)" });
+        return;
+      }
+
+      const result = await extractSbiAccountInfo(
+        req.file.buffer,
+        req.body?.password,
+        req.body?.details || {},
+      );
+
+      res.json(result);
+    } catch (error) {
+      if (
+        error.code === "PASSWORD_REQUIRED" ||
+        error.code === "INVALID_PASSWORD" ||
+        error.code === "INVALID_PDF" ||
+        error.code === "INVALID_DETAILS"
+      ) {
+        res.status(400).json({ error: error.message, code: error.code });
+        return;
+      }
+
+      res
+        .status(500)
+        .json({ error: `Internal server error - ${error.message}` });
+    }
+  },
+);
 
 module.exports = router;

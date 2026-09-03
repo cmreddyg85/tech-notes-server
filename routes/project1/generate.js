@@ -3882,8 +3882,8 @@ function generateSbiTransactions(options = {}) {
     accountInfo = {},
     numberOfCreditsTransactions = DEFAULT_NUMBER_OF_CREDITS_TRANSACTIONS,
     numberOfDebitsTransactions = DEFAULT_NUMBER_OF_DEBITS_TRANSACTIONS,
-    balanceBeforeFromDate = DEFAULT_BALANCE_BEFORE_FROM_DATE,
-    balanceAfterToDate = DEFAULT_BALANCE_AFTER_TO_DATE,
+    balanceBeforeFromDate: balanceBeforeFromDateInput = DEFAULT_BALANCE_BEFORE_FROM_DATE,
+    balanceAfterToDate: balanceAfterToDateInput = DEFAULT_BALANCE_AFTER_TO_DATE,
     salaryDay = DEFAULT_SALARY_DAY,
     nextWorkingDay = DEFAULT_NEXT_WORKING_DAY,
     addRentTransaction = false,
@@ -3893,6 +3893,9 @@ function generateSbiTransactions(options = {}) {
     salaries = [],
     bank = DEFAULT_BANK_CODES,
   } = options;
+
+  const balanceBeforeFromDate = Number.parseFloat(balanceBeforeFromDateInput);
+  const balanceAfterToDate = Number.parseFloat(balanceAfterToDateInput);
 
   function getWorkingDay(year, month, day = null, useNextWorkingDay = false) {
     let selectedDate;
