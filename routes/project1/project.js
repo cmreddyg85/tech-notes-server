@@ -8,6 +8,7 @@ const {
 
 const router = express.Router();
 const { chromium } = require("playwright");
+const { icons } = require("./icons");
 
 router.get("/sbi-user-details", (req, res) => {
   res.json({
@@ -20,300 +21,843 @@ router.get("/sbi-user-details", (req, res) => {
 // API endpoint to generate and download the PDF
 router.post("/generate-sbi-statement", async (req, res) => {
   try {
-    // Examples
-    //console.log(formatDate("01/03/2019"));  // → "01 Mar 2019"
-    //console.log(formatDate("01-Mar-19"));   // → "01 Mar 2019"
+    // Helper: format date (not strictly needed but kept for consistency)
     function dateFormat(input = "") {
       let date;
-
       if (input.includes("/")) {
-        // Handle "01/03/2019" format
         const [day, month, year] = input.split("/");
         date = new Date(
           `${year.length === 2 ? "20" + year : year}-${month}-${day}`,
         );
       } else if (input.includes("-")) {
-        // Handle "01-Mar-19" format
         const [day, monStr, year] = input.split("-");
         date = new Date(
           `${year.length === 2 ? "20" + year : year}-${monStr}-${day}`,
         );
       }
-
       const options = { day: "numeric", month: "short", year: "numeric" };
       return date?.toLocaleDateString("en-GB", options) || input;
     }
 
+    // Helper: format number to Indian style with 2 decimals
     function formatToIndianDenomination(balance) {
-      if (typeof balance !== "string") return balance;
-      if (balance.includes(",")) return balance;
-
-      const number = parseFloat(balance);
-      if (isNaN(number)) return balance;
-
-      return number.toLocaleString("en-IN", {
+      if (typeof balance !== "string" && typeof balance !== "number")
+        return balance;
+      const num = parseFloat(balance);
+      if (isNaN(num)) return balance;
+      return num.toLocaleString("en-IN", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
     }
 
-    const accountInfo = req.body.accountInfo;
-    const transactions = req.body.transactions;
+    // Compute summary from transactions
+    function computeSummary(txs) {
+      if (!txs || txs.length === 0) {
+        return {
+          openingBalance: 0,
+          totalDebits: 0,
+          totalCredits: 0,
+          debitCount: 0,
+          creditCount: 0,
+          closingBalance: 0,
+        };
+      }
+
+      let first = txs[0];
+      let last = txs[txs.length - 1];
+
+      // Parse first transaction's balance and debit/credit
+      let firstBalance = parseFloat(first.Balance?.replace(/,/g, "") || 0);
+      let firstDebit = parseFloat(first.Debit?.replace(/,/g, "") || 0);
+      let firstCredit = parseFloat(first.Credit?.replace(/,/g, "") || 0);
+
+      // Opening balance = balance before first transaction
+      let openingBalance = firstBalance;
+      if (firstDebit > 0) openingBalance += firstDebit;
+      else if (firstCredit > 0) openingBalance -= firstCredit;
+
+      let totalDebits = 0,
+        totalCredits = 0,
+        debitCount = 0,
+        creditCount = 0;
+      txs.forEach((tx) => {
+        let debit = parseFloat(tx.Debit?.replace(/,/g, "") || 0);
+        let credit = parseFloat(tx.Credit?.replace(/,/g, "") || 0);
+        if (debit > 0) {
+          totalDebits += debit;
+          debitCount++;
+        }
+        if (credit > 0) {
+          totalCredits += credit;
+          creditCount++;
+        }
+      });
+
+      let closingBalance = parseFloat(last.Balance?.replace(/,/g, "") || 0);
+
+      return {
+        openingBalance,
+        totalDebits,
+        totalCredits,
+        debitCount,
+        creditCount,
+        closingBalance,
+      };
+    }
+
+    const accountInfo = req.body.accountInfo || {};
+    const transactions = req.body.transactions || [];
+    const summary = computeSummary(transactions);
+
+    // Format summary numbers
+    const openingBalStr = formatToIndianDenomination(summary.openingBalance);
+    const totalDebitsStr = formatToIndianDenomination(summary.totalDebits);
+    const totalCreditsStr = formatToIndianDenomination(summary.totalCredits);
+    const closingBalStr = formatToIndianDenomination(summary.closingBalance);
+
+    // Build transaction rows HTML
+    let transactionRows = "";
+    transactions.forEach((tx) => {
+      const debit = tx.Debit ? formatToIndianDenomination(tx.Debit) : "";
+      const credit = tx.Credit ? formatToIndianDenomination(tx.Credit) : "";
+      const balance = tx.Balance ? formatToIndianDenomination(tx.Balance) : "";
+      transactionRows += `
+        <tr>
+          <td class="center">${tx.Date || ""}</td>
+          <td class="center">${tx.Date || ""}</td>
+          <td class="details-cell">${tx.Narration || ""}</td>
+          <td class="center">${"-"}</td>
+          <td class="center">${debit || "-"}</td>
+          <td class="center">${credit || "-"}</td>
+          <td class="center">${balance}</td>
+        </tr>
+      `;
+    });
+
+    // Prepare dynamic values
+    const customerName = accountInfo.customerName || "";
+    const email = accountInfo.email || "";
+    const address = accountInfo.address || "";
+    const dateOfStatement = accountInfo.dateOfStatement || "";
+    const clearBalance = accountInfo.clearBalance || "0.00";
+    const unclearedAmount = accountInfo.unclearedAmount || "0.00";
+    const modBalance = accountInfo.modBalance || "0.00";
+    const lien = accountInfo.lien || "0.00";
+    const limit = accountInfo.limit || "0.00";
+    const monthlyAvgBalance = accountInfo.monthlyAvgBalance || "0.00";
+    const interestRate = accountInfo.interestRate || "0.00 % p.a.";
+    const drawingPower = accountInfo.drawingPower || "0.00";
+    const accountOpenDate = accountInfo.accountOpenDate || "";
+    const district = accountInfo.district || "";
+    const bankAddress = accountInfo.bankAddress || "";
+    const branchCode = accountInfo.branchCode || "";
+    const branchName = accountInfo.branchName || "";
+    const branchEmail = accountInfo.branchEmail || "";
+    const branchPhone = accountInfo.branchPhone || "";
+    const cifNumber = accountInfo.cifNumber || "";
+    const accountNumber = accountInfo.accountNumber || "";
+    const accountTypeSuffix = accountInfo.accountTypeSuffix || "";
+    const product = accountInfo.product || "";
+    const ifscCode = accountInfo.ifscCode || "";
+    const currency = accountInfo.currency || "INR";
+    const accountStatus = accountInfo.accountStatus || "";
+    const ckycrNumber = accountInfo.ckycrNumber || "Not Available";
+    const micrCode = accountInfo.micrCode || "";
+    const nomineeName = accountInfo.nomineeName || "XXXXX";
+    const fromDate = accountInfo.fromDate || "";
+    const toDate = accountInfo.toDate || "";
 
     // Direct HTML with embedded CSS
-    const htmlContent = `<!DOCTYPE html>
+    const htmlContent = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SBI Account Statement</title>
+    <title>Statement of Account</title>
     <style>
+      :root {
+        --purple: #5553aa;
+        --accentline: #9f64d3;
+        --text: #1a1a1a;
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        color-adjust: exact;
+      }
+      html,
       body {
-        margin: 0 auto;
+        margin: 0;
         padding: 0;
-        font-family: Arial, sans-serif;
-        background: #f5f5f5;
-        width: 100%;
-         background: white !important;
       }
-
-      .sbi-container {
+      body {
+        background: #e8e8e8;
+        font-family: Arial, Helvetica, sans-serif;
+        color: var(--text);
+        padding: 20px 0;
+      }
+      body {
+        padding-bottom: 30px;
+      }
+      .page {
+        width: 210mm;
+        min-height: 297mm;
         margin: 0 auto;
-        background: white;
+        background: #fff;
+        border: 1px solid #d9d9d9;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
       }
 
-      .sbi-info-row {
-        margin-bottom: 0.313rem;
-        font-size: 0.75rem;
+      @page {
+        size: A4;
+        margin-top: -1px;
+        margin-left: 0;
+        margin-right: 0;
+        margin-bottom: 40px !important;
       }
 
-      .sbi-info-label {
-        width: 144px;
-        display: inline-block;
-        vertical-align: top;
-      }
-      .sbi-info-value {
-        display: inline-block;
-      }
-      .sbi-address-line2 {
-        margin-left: 5px;
-        margin-bottom: 0.313rem;
-      }
-      .sbi-address-line {
-        margin-left: 5px;
-        margin-bottom: 0.313rem;
-      }
-
-      .sbi-statement-period {
-        margin-top: 2.2rem;
-        margin-bottom: 1.4rem;
-        font-size: 1rem;
+      @media print {
+        html,
+        body {
+          width: 210mm;
+        }
+        body {
+          background: #fff;
+          padding: 0;
+        }
+        .page {
+          width: 210mm !important;
+          min-height: 297mm;
+          margin: 0;
+          border: none;
+          box-shadow: none;
+          page-break-after: always;
+        }
       }
 
-      table, th, td {
-        border: 1px solid black;
-        border-collapse: collapse;
-      }
-      
-      tr {
-        page-break-inside: avoid; /* prevent row split across pages */
-      }
-
-      .sbi-transaction-table {
+      /* ===== HEADER ===== */
+      .header {
+        background: var(--purple);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 3px 45px;
+        color: #fff;
         width: 100%;
-        max-width: 100%;
-        margin-bottom: 4px;
-        background-color: transparent;
+      }
+      .brand {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .brand-logo {
+        display: flex;
+        align-items: center;
+      }
+      .brand-logo img {
+        width: 145px;
+      }
+      .brand-sub {
+        font-size: 16px;
+        font-weight: 400;
+      }
+      .date-box {
+        border: 1px solid #fff;
+        border-radius: 8px;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+      }
+      .date-box svg {
+        width: 18px;
+        height: 18px;
+        stroke: #fff;
+        fill: none;
+        stroke-width: 1.6;
+      }
+      .welcome {
+        text-align: right;
+        line-height: 1.4;
+      }
+      .welcome .label {
+        font-size: 13px;
+      }
+      .welcome .nameH {
+        font-size: 13px;
+      }
+      .title-bar {
+        padding-top: 3px;
+        padding-left: 45px;
+        padding-right: 45px;
+      }
+      .title-bar h1 {
+        text-align: center;
+        font-size: 16px;
+        font-weight: 500;
+        margin: 0 0 12px 0;
+        color: var(--text);
+      }
+      .title-bar hr {
+        border: none;
+        border-top: 1px solid #ccc;
+        margin: 0;
       }
 
-      .sbi-transaction-table td {
-        padding: 4px 4px 1px 2px;
+      /* ===== ACCOUNT DETAILS ===== */
+      .details {
+        padding: 20px 47px;
+      }
+      .details-grid {
+        display: grid;
+        grid-template-columns: 51% 49%;
+        gap: 15px;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 10px;
+      }
+      .icon {
+        flex: 0 0 26px;
+        width: 26px;
+        height: 26px;
+        color: var(--purple);
+        margin-top: 2px;
+      }
+      .icon svg {
+        width: 26px;
+        height: 26px;
+        stroke: var(--purple);
+        fill: none;
+        stroke-width: 1.6;
+      }
+      .divider {
+        border-left: 2px solid var(--accentline);
+        padding-left: 7px;
+        flex: 1;
+        padding-top: 2px;
+        padding-bottom: 3px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+      }
+      .name {
+        font-size: 16px;
+      }
+      .email,
+      .address {
+        font-size: 13px;
+      }
+      .bank-title {
+        font-size: 18px;
+        font-weight: 500;
+        color: #0ebbff;
+        margin: 0 0 10px 35px;
+      }
+      .district {
+        font-size: 13px;
+        margin: 0 0 12px 35px;
+      }
+      .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .fieldL {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        font-size: 13px;
+      }
+      .fieldR {
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        font-size: 13px;
+      }
+      .fieldL .value::before {
+        content: ": ";
+      }
+      .fieldR .value::before {
+        content: ": ";
+      }
+      .fieldR .value {
+        word-break: break-all;
+      }
+      .indented-fields {
+        border-left: 2px solid var(--accentline);
+        padding-left: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        margin-top: 4px;
+      }
+
+      /* ===== TRANSACTION TABLE ===== */
+      .transactions {
+        padding: 0 24px 20px 24px;
+      }
+      .period {
+        text-align: center;
+        font-size: 14px;
+        margin-bottom: 30px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #999;
+        page-break-inside: auto;
+      }
+      table tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      thead th {
+        background: var(--purple);
+        color: #fff;
+        font-size: 12.5px;
+        font-weight: 500;
+        padding: 8px 8px;
+        text-align: center;
+        border: 1px solid #776bb0;
+      }
+      tbody td {
+        border: 1px solid #ccc;
+        padding: 8px 8px;
+        font-size: 12px;
         vertical-align: top;
-        font-size: 0.75rem;
       }
-
-      .sbi-transaction-table th {
-        padding: 4px 6px 1px 2px;
-        vertical-align: top;
-        font-size: 0.8rem;
-        line-height: 1;
+      td.center {
+        text-align: center;
       }
-
-      .sbi-transaction-table .sbi-amount {
+      td.right {
         text-align: right;
       }
-
-      .sbi-transaction-table .sbi-desc {
-        word-break: break-word; /* Breaks words only when necessary */
-        word-break: break-all;  /* Breaks words at any character */
-        word-wrap: break-word;
+      .details-cell {
+        line-height: 1.4;
+        word-break: break-all;
+      }
+      tfoot td {
+        background: var(--purple);
+        border: 1px solid #776bb0;
+        padding: 10px 0;
+      }
+      .summary-wrap {
+        margin: 0 24px;
+        border: 1px solid #ccc;
       }
 
-      .sbi-notice {
-        text-indent: 1.2rem;
-        font-size: 0.75rem;
-        line-height: 1.5;
-        margin-bottom: 1.5rem;
-        text-align: justify;
+      .summary-title {
+        background: var(--purple);
+        color: #fff;
+        text-align: center;
+        padding: 8px 8px;
+        font-size: 14px;
+        font-weight: 100;
       }
 
-      .sbi-footer {
-        font-size: 0.75rem;
+      .summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10.5px;
+      }
+
+      .summary-table thead th {
+        background: white;
+        color: #1a1a1a;
+        padding: 5px 6px;
+        border: 1px solid #ccc;
+        text-align: center;
+        font-weight: 100;
+        font-size: 15px;
+      }
+
+      .summary-table tbody td {
+        background: #fff;
+        color: #1a1a1a;
+        padding: 6px 6px;
+        border: 1px solid #ccc;
+        text-align: center;
+        font-size: 15px;
+      }
+
+      .disc {
+        margin: 0 24px;
+        font-size: 9.5px;
+        color: #222;
+        line-height: 1.7;
+      }
+
+      .disc ul {
+        margin-left: -22px;
+      }
+
+      .disc li {
+        margin-left: 1px;
+        margin-bottom: 2px;
+      }
+
+      @media screen and (max-width: 900px) {
+        .details-grid {
+          grid-template-columns: 1fr;
+          gap: 30px;
+        }
+        .field {
+          grid-template-columns: 160px 1fr;
+        }
+        .header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 16px;
+        }
+        .welcome {
+          text-align: left;
+        }
+      }
+
+      /* Print always keeps the fixed A4 two-column layout regardless of viewport */
+      @media print {
+        .details-grid {
+          grid-template-columns: 1fr 1fr !important;
+          gap: 36px !important;
+        }
+        .field {
+          grid-template-columns: 150px 1fr !important;
+        }
+        .header {
+          flex-direction: row !important;
+          align-items: center !important;
+        }
+        .welcome {
+          text-align: right !important;
+        }
       }
     </style>
   </head>
-
   <body>
-    <div class="sbi-container">
-      <img
-        src="https://upload.wikimedia.org/wikipedia/en/5/58/State_Bank_of_India_logo.svg"
-        height="51"
-        style="margin-bottom: 15px; margin-left: 10px"
-      />
-
-      <div class="sbi-info-container">
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Account Name</div>
-          <div class="sbi-info-value">: ${accountInfo.accountName}</div>
-        </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Address</div>
-          <div class="sbi-info-value">
-            <div class="sbi-address-line">: ${accountInfo.addressLine1}</div>
-            <div class="sbi-address-line2">${accountInfo.addressLine2}</div>
-            <div class="sbi-address-line2">${accountInfo.addressLine3}</div>
-            <div class="sbi-address-line2">${accountInfo.addressLine4}</div>
+    <div class="page">
+      <!-- ===== HEADER ===== -->
+      <div class="header">
+        <div class="brand">
+          <div class="brand-logo">
+            <img
+              src="data:image/png;base64,${icons.sbilogo}"
+              />
           </div>
+          <div class="brand-sub">Account Summary</div>
         </div>
 
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Date</div>
-          <div class="sbi-info-value">: ${accountInfo.statementDate}</div>
+        <div class="date-box">
+          <img
+            height="22"
+            src="data:image/png;base64,${icons.calendarWhite}"
+          />
+          <span>As on&nbsp; ${dateOfStatement}</span>
         </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Account Number</div>
-          <div class="sbi-info-value">: ${accountInfo.accountNumber}</div>
-        </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Account Description</div>
-          <div class="sbi-info-value">: ${accountInfo.accountDescription}</div>
-        </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Branch</div>
-          <div class="sbi-info-value">: ${accountInfo.branch}</div>
-        </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Drawing Power</div>
-          <div class="sbi-info-value">: ${accountInfo.drawingPower}</div>
-        </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Interest Rate(% p.a.)</div>
-          <div class="sbi-info-value">: ${accountInfo.interestRate}</div>
-        </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">MOD Balance</div>
-          <div class="sbi-info-value">: ${accountInfo.modBalance}</div>
+
+        <div class="welcome">
+          <div class="label">Welcome:</div>
+          <div class="nameH">Mr. GURAVA REDDY GOLLAPALLI</div>
         </div>
       </div>
 
-      <div class="sbi-info-container">
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">CIF No.</div>
-          <div class="sbi-info-value">: ${accountInfo.cifNumber}</div>
-        </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">CKYCR Number</div>
-          <div class="sbi-info-value">: ${accountInfo.ckycrNumber}</div>
-        </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">
-            <div>IFS Code</div>
-          </div>
-          <div class="sbi-info-value">: ${accountInfo.ifsCode}</div>
-        </div>
-        <div class="sbi-info-row">(Indian Financial System)</div>
+      <div class="title-bar">
+        <h1>STATEMENT OF ACCOUNT</h1>
+        <hr />
+      </div>
 
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">
-            <div>MICR Code</div>
-          </div>
-          <div class="sbi-info-value">: ${accountInfo.micrCode}</div>
-        </div>
-        <div class="sbi-info-row">(Magnetic Ink Character Recognition)</div>
+      <!-- ===== ACCOUNT DETAILS ===== -->
+      <div class="details">
+        <div class="details-grid">
+          <!-- LEFT COLUMN -->
+          <div class="col">
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.contact}" />
+              </div>
+              <div class="divider">
+                <div class="name">${customerName}</div>
+              </div>
+            </div>
 
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Nomination Registered</div>
-          <div class="sbi-info-value">: ${accountInfo.nomination}</div>
-        </div>
-        <div class="sbi-info-row">
-          <div class="sbi-info-label">Balance as on ${dateFormat(
-            accountInfo.balanceDate,
-          )}</div>
-          <div class="sbi-info-value">: ${formatToIndianDenomination(
-            accountInfo.openingBalance,
-          )}</div>
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.mail}" />
+              </div>
+              <div class="divider">
+                <div class="email">${email}</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.location}" />
+              </div>
+              <div class="divider">
+                <div class="address">${address}</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.calendar}" />
+              </div>
+              <div class="divider">
+                <div class="field-group">
+                  <div class="fieldL">
+                    <div class="label">Date of Statement</div>
+                    <div class="value">${dateOfStatement}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.wallet}" />
+              </div>
+              <div class="divider">
+                <div class="field-group">
+                  <div class="fieldL">
+                    <div class="label">Clear Balance</div>
+                    <div class="value">${clearBalance}</div>
+                  </div>
+                  <div class="fieldL">
+                    <div class="label">Uncleared Amount</div>
+                    <div class="value">${unclearedAmount}</div>
+                  </div>
+                  <div class="fieldL">
+                    <div class="label">+MOD Bal</div>
+                    <div class="value">${modBalance}</div>
+                  </div>
+                  <div class="fieldL">
+                    <div class="label">Lien</div>
+                    <div class="value">${lien}</div>
+                  </div>
+                  <div class="fieldL">
+                    <div class="label">Limit</div>
+                    <div class="value">${limit}</div>
+                  </div>
+                  <div class="fieldL">
+                    <div class="label">Monthly Avg Balance</div>
+                    <div class="value">${monthlyAvgBalance}</div>
+                  </div>
+                  <div class="fieldL">
+                    <div class="label">Interest Rate</div>
+                    <div class="value">${interestRate}</div>
+                  </div>
+                  <div class="fieldL">
+                    <div class="label">Drawing Power</div>
+                    <div class="value">${drawingPower}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.bank}" />
+              </div>
+              <div class="divider">
+                <div class="fieldL">
+                  <div class="label">Account open Date</div>
+                  <div class="value">${accountOpenDate}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN -->
+          <div class="col">
+            <div class="bank-title">State Bank of India</div>
+            <div class="district">${district}</div>
+
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.location}" />
+              </div>
+              <div class="divider">
+                <div class="address">${bankAddress}</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.bank}" />
+              </div>
+              <div class="divider">
+                <div class="field-group">
+                  <div class="fieldR">
+                    <div class="label">Branch Code</div>
+                    <div class="value">${branchCode}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">Branch Name</div>
+                    <div class="value">${branchName}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">Branch Email ID</div>
+                    <div class="value">${branchEmail}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">Branch Phone</div>
+                    <div class="value">${branchPhone}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.document}" />
+              </div>
+              <div class="divider">
+                <div class="field-group">
+                  <div class="fieldR">
+                    <div class="label">CIF Number</div>
+                    <div class="value">${cifNumber}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">Account Number</div>
+                    <div class="value">${accountNumber}${accountTypeSuffix ? " (" + accountTypeSuffix + ")" : ""}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">Product</div>
+                    <div class="value" style="font-size: 12px">${product}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">IFSC Code</div>
+                    <div class="value">${ifscCode}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">Currency</div>
+                    <div class="value">${currency}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">Account Status</div>
+                    <div class="value">${accountStatus}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">CKYCR Number</div>
+                    <div class="value">${ckycrNumber}</div>
+                  </div>
+                  <div class="fieldR">
+                    <div class="label">MICR Code</div>
+                    <div class="value">${micrCode}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="icon">
+                <img height="22" src="data:image/png;base64,${icons.user_plus}" />
+              </div>
+              <div class="divider">
+                <div class="fieldR">
+                  <div class="label">Nominee Name</div>
+                  <div class="value">${nomineeName}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="sbi-statement-period">
-        Account Statement from ${dateFormat(
-          accountInfo.startDate,
-        )} to ${dateFormat(accountInfo.endDate)}
-      </div>
+      <!-- ===== TRANSACTION TABLE ===== -->
+      <div class="transactions">
+        <div class="period">
+          <span>Statement From&nbsp;&nbsp;&nbsp;: </span>${fromDate.replace(/\//g, "-")} to ${toDate.replace(/\//g, "-")}
+        </div>
 
-      <div class="sbi-divider"></div>
-
-      <table class="sbi-transaction-table">
-        <thead>
-          <tr>
-            <th style="width: 10%; text-align: left">Txn Date</th>
-            <th style="width: 10%; text-align: left">Value Date</th>
-            <th style="width: 25%; text-align: left">Description</th>
-            <th style="width: 17%; text-align: left">Ref No./Cheque No.</th>
-            <th style="text-align: right;">Debit</th>
-            <th style="text-align: right;">Credit</th>
-            <th style="text-align: right; width: 17%">Balance</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${transactions
-            .map(
-              (txn) => `
+        <table>
+          <thead>
             <tr>
-              <td class="sbi-amount">${dateFormat(txn.Date)}</td>
-              <td class="sbi-amount">${dateFormat(txn.Date)}</td>
-              <td class="sbi-desc">${txn.Narration}</td>
-              <td class="sbi-desc">${txn.Ref}</td>
-              <td class="sbi-amount">${formatToIndianDenomination(
-                txn.Debit,
-              )}</td>
-              <td class="sbi-amount">${formatToIndianDenomination(
-                txn.Credit,
-              )}</td>
-              <td class="sbi-amount">${formatToIndianDenomination(
-                txn.Balance,
-              )}</td>
+              <th style="width: 9%">Value Date</th>
+              <th style="width: 9%">Post Date</th>
+              <th>Details</th>
+              <th style="width: 9%">Ref No/<br />Cheque No</th>
+              <th style="width: 9%">₹ Debit</th>
+              <th style="width: 9%">₹ Credit</th>
+              <th style="width: 10%">Balance</th>
             </tr>
-          `,
-            )
-            .join("")}
-        </tbody>
-      </table>
-
-      <div class="sbi-notice">
-        Please do not share your ATM, Debit/Credit card number, PIN (Personal
-        Identification Number) and OTP (One Time Password) with anyone over
-        mail, SMS, phone call or any other media. Bank never asks for such
-        information.
+          </thead>
+          <tbody>
+            ${transactionRows}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
 
-      <div class="sbi-footer">
-        **This is a computer generated statement and does not require a
-        signature.
+      <div style="height: 22px"></div>
+
+      <div class="summary-wrap">
+        <div class="summary-title">
+          Statement Summary &nbsp;: ${fromDate.replace(/\//g, "-")} To ${toDate.replace(/\//g, "-")}
+        </div>
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Brought Forward (&#8377;)</th>
+              <th>Dr Count</th>
+              <th>Cr Count</th>
+              <th>Total Debits (&#8377;)</th>
+              <th>Total Credits(&#8377;)</th>
+              <th>Closing Balance (&#8377;)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${openingBalStr}</td>
+              <td>${summary.debitCount}</td>
+              <td>${summary.creditCount}</td>
+              <td>${totalDebitsStr}</td>
+              <td>${totalCreditsStr}</td>
+              <td>${closingBalStr}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="disc">
+        <ul>
+          <li>
+            Please do not share your ATM, Debit/Credit Card number, PIN
+            (Personal Identification number ), OTP (One-Time Password), Username
+            or Password with anyone via email, SMS, phone call, or any other
+            medium. Bank never asks for such information.
+          </li>
+          <li>
+            If your account is operated by a Power of Attorney holder, please
+            review the transactions with extra care.
+          </li>
+          <li>
+            This is a computer generated statement and does not require a
+            signature.
+          </li>
+        </ul>
       </div>
     </div>
   </body>
-</html>`;
+</html>
+`;
 
     // PDF options
     // const pdfOptions = {
@@ -357,13 +901,20 @@ router.post("/generate-sbi-statement", async (req, res) => {
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
-      preferCSSPageSize: true,
+      // preferCSSPageSize: true,
       margin: {
         top: "15mm",
         right: "13mm",
-        bottom: "9mm",
+        bottom: "30mm",
         left: "13mm",
       },
+      displayHeaderFooter: true,
+      headerTemplate: `<div></div>`,
+      footerTemplate: `
+        <div style="width:100%; text-align:center; font-size:13px; color:#444;">
+          Page no. <span class="pageNumber"></span>
+        </div>
+      `,
     });
 
     await browser.close();
