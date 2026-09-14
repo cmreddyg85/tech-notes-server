@@ -4,11 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-const {
-  numOfYears,
-  accountInfo,
-  transactions,
-} = require("../../data/project1");
+const { accountInfo, transactions } = require("../../data/project1");
 
 const router = express.Router();
 const { chromium } = require("playwright");
@@ -122,9 +118,31 @@ function sanitizeFileName(value = "statement") {
   );
 }
 
+const PROJECT1_DATA_FILE = path.join(__dirname, "../../data/project1.js");
+
+async function writeProject1DataFile({
+  accountInfo: info,
+  transactions: txns,
+  salaryTrans: salaries,
+}) {
+  const fileContent = `const accountInfo = ${JSON.stringify(info, null, 2)};
+
+const transactions = ${JSON.stringify(txns, null, 2)};
+
+const salaryTrans = ${JSON.stringify(salaries, null, 2)};
+
+module.exports = {
+  accountInfo,
+  transactions,
+  salaryTrans,
+};
+`;
+
+  await fs.writeFile(PROJECT1_DATA_FILE, fileContent, "utf8");
+}
+
 router.get("/sbi-user-details", (req, res) => {
   res.json({
-    numOfYears,
     accountInfo,
     transactions,
   });
@@ -1338,6 +1356,14 @@ router.post(
           invalidDates: generated.invalidDates,
         });
         return;
+      }
+
+      if (downloadJson) {
+        await writeProject1DataFile({
+          accountInfo: generated.accountInfo,
+          transactions: generated.transactions,
+          salaryTrans: generated.salaryTrans,
+        });
       }
 
       const nameSlug = sanitizeFileName(
