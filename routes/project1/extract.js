@@ -119,19 +119,86 @@ function processLabeledColumn(lines, labelList) {
   return { fields, prefixLines };
 }
 
+// function extractCustomerBlock(prefixLines) {
+//   const relevant = prefixLines.filter(
+//     (line) => !LEFT_PREFIX_NOISE.has(line) && !isHeaderBannerLine(line),
+//   );
+//   const emailIndex = relevant.findIndex((line) => EMAIL_PATTERN.test(line));
+
+//   const customerName = relevant[0] || "";
+//   const email = emailIndex >= 0 ? relevant[emailIndex] : "";
+//   const address = relevant
+//     .filter((line, index) => index !== 0 && index !== emailIndex)
+//     .join(" ");
+
+//   return { customerName, email, address };
+// }
+
 function extractCustomerBlock(prefixLines) {
   const relevant = prefixLines.filter(
     (line) => !LEFT_PREFIX_NOISE.has(line) && !isHeaderBannerLine(line),
   );
-  const emailIndex = relevant.findIndex((line) => EMAIL_PATTERN.test(line));
 
+  if (!relevant.length) {
+    return {
+      customerName: "",
+      email: "Not Available",
+      address: "",
+    };
+  }
+
+  // First line is always the customer name.
   const customerName = relevant[0] || "";
-  const email = emailIndex >= 0 ? relevant[emailIndex] : "";
+
+  /*
+   * SBI customer section normally appears as:
+   *
+   * Customer Name
+   * Email
+   * Address
+   *
+   * Email can also be:
+   * Not Available
+   * N/A
+   * NA
+   * -
+   *
+   * When an actual email exists, detect it using EMAIL_PATTERN.
+   */
+  let emailIndex = relevant.findIndex(
+    (line, index) => index > 0 && EMAIL_PATTERN.test(line),
+  );
+
+  /*
+   * When email is not available, SBI prints
+   * "Not Available" on the email row.
+   *
+   * Treat that as the email value instead of
+   * putting it into the address.
+   */
+  if (emailIndex < 0 && relevant.length > 1) {
+    const secondLine = relevant[1].trim();
+
+    if (/^(not available|n\/a|na|-)$/i.test(secondLine)) {
+      emailIndex = 1;
+    }
+  }
+
+  const email = emailIndex >= 0 ? relevant[emailIndex] : "Not Available";
+
+  /*
+   * Address contains everything after customer name
+   * except the email line.
+   */
   const address = relevant
     .filter((line, index) => index !== 0 && index !== emailIndex)
     .join(" ");
 
-  return { customerName, email, address };
+  return {
+    customerName,
+    email,
+    address,
+  };
 }
 
 function extractBankBlock(prefixLines, customerName) {
