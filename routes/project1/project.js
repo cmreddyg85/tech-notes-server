@@ -291,7 +291,14 @@ async function generateSbiStatement(req, res) {
           <td class="center">${tx.Date || ""}</td>
           <td class="center">${tx.Date || ""}</td>
           <td class="details-cell">
-            ${tx.Narration || ""} 009${Math.floor(100000000 + Math.random() * 900000000)} AT ${accountInfo.branchCode} ${accountInfo.branchName}
+            ${tx.Narration || ""}
+  ${
+    tx.isSalary
+      ? ""
+      : ` 009${Math.floor(
+          100000000 + Math.random() * 900000000,
+        )} AT ${accountInfo.branchCode} ${accountInfo.branchName}`
+  }
           </td>
           <td class="center">${"-"}</td>
           <td class="center">${debit || "-"}</td>
@@ -349,7 +356,7 @@ async function generateSbiStatement(req, res) {
     <title>Statement of Account</title>
     <style>
       :root {
-        --purple: #5553aa;
+        --purple: #5553AA;
         --accentline: #9f64d3;
         --text: #1a1a1a;
       }
@@ -586,7 +593,7 @@ async function generateSbiStatement(req, res) {
       table {
         width: 100%;
         border-collapse: collapse;
-        border: 1px solid #999;
+        border: 1px solid #B8B8B8;
         page-break-inside: auto;
       }
       table tr {
@@ -600,10 +607,10 @@ async function generateSbiStatement(req, res) {
         font-weight: 500;
         padding: 8px 8px;
         text-align: center;
-        border: 1px solid #776bb0;
+        border: 1px solid #B8B8B8;
       }
       tbody td {
-        border: 1px solid #ccc;
+        border: 1px solid #B8B8B8;
         padding: 8px 8px;
         font-size: 12px;
         vertical-align: top;
@@ -620,12 +627,13 @@ async function generateSbiStatement(req, res) {
       }
       tfoot td {
         background: var(--purple);
-        border: 1px solid #776bb0;
+        border: 1px solid #B8B8B8;
         padding: 10px 0;
+        min-height: 100px;
       }
       .summary-wrap {
         margin: 0 24px;
-        border: 1px solid #ccc;
+        border: 1px solid #B8B8B8;
       }
 
       .summary-title {
@@ -647,7 +655,7 @@ async function generateSbiStatement(req, res) {
         background: white;
         color: #1a1a1a;
         padding: 5px 6px;
-        border: 1px solid #ccc;
+        border: 1px solid #B8B8B8;
         text-align: center;
         font-weight: 100;
         font-size: 15px;
@@ -657,7 +665,7 @@ async function generateSbiStatement(req, res) {
         background: #fff;
         color: #1a1a1a;
         padding: 6px 6px;
-        border: 1px solid #ccc;
+        border: 1px solid #B8B8B8;
         text-align: center;
         font-size: 15px;
       }
@@ -738,7 +746,7 @@ async function generateSbiStatement(req, res) {
 
         <div class="welcome">
           <div class="label">Welcome:</div>
-          <div class="nameH">Mr. GURAVA REDDY GOLLAPALLI</div>
+          <div class="nameH">${customerName}</div>
         </div>
       </div>
 
@@ -904,7 +912,7 @@ async function generateSbiStatement(req, res) {
                   </div>
                   <div class="fieldR">
                     <div class="label">Product</div>
-                    <div class="value" style="font-size: 12px">${product}</div>
+                    <div class="value" style="font-size: 10px !important">${product}</div>
                   </div>
                   <div class="fieldR">
                     <div class="label">IFSC Code</div>
@@ -967,7 +975,7 @@ async function generateSbiStatement(req, res) {
           </tbody>
           <tfoot>
             <tr>
-              <td></td>
+              <td>&nbsp;</td>
               <td></td>
               <td></td>
               <td></td>
@@ -1084,7 +1092,7 @@ async function generateSbiStatement(req, res) {
       displayHeaderFooter: true,
       headerTemplate: `<div></div>`,
       footerTemplate: `
-        <div style="width:100%; text-align:center; font-size:13px; color:#444;">
+        <div style="width:100%; text-align:center; font-size:14px; color:#444;">
           Page no. <span class="pageNumber"></span>
         </div>
       `,
