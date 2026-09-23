@@ -294,7 +294,9 @@ async function generateSbiStatement(req, res) {
             ${tx.Narration || ""}
   ${
     tx.isSalary
-      ? ""
+      ? ` 009${Math.floor(
+          100000000 + Math.random() * 900000000,
+        )} AT ${accountInfo.branchCode} ${accountInfo.branchName}`
       : ` 009${Math.floor(
           100000000 + Math.random() * 900000000,
         )} AT ${accountInfo.branchCode} ${accountInfo.branchName}`
@@ -912,7 +914,7 @@ async function generateSbiStatement(req, res) {
                   </div>
                   <div class="fieldR">
                     <div class="label">Product</div>
-                    <div class="value" style="font-size: 10px !important">${product}</div>
+                    <div class="value" style="font-size: 9px !important">${product}</div>
                   </div>
                   <div class="fieldR">
                     <div class="label">IFSC Code</div>
@@ -961,13 +963,13 @@ async function generateSbiStatement(req, res) {
         <table>
           <thead>
             <tr>
-              <th style="width: 9%">Value Date</th>
-              <th style="width: 9%">Post Date</th>
+              <th style="width: 10%">Value Date</th>
+              <th style="width: 10%">Post Date</th>
               <th>Details</th>
-              <th style="width: 9%">Ref No/<br />Cheque No</th>
-              <th style="width: 9%">₹ Debit</th>
-              <th style="width: 9%">₹ Credit</th>
-              <th style="width: 10%">Balance</th>
+              <th style="width: 10%">Ref No/<br />Cheque No</th>
+              <th style="width: 12%">₹ Debit</th>
+              <th style="width: 12%">₹ Credit</th>
+              <th style="width: 13%">Balance</th>
             </tr>
           </thead>
           <tbody>
