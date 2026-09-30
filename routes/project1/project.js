@@ -293,10 +293,8 @@ async function generateSbiStatement(req, res) {
           <td class="details-cell">
             ${tx.Narration || ""}
   ${
-    tx.isSalary
-      ? ` 009${Math.floor(
-          100000000 + Math.random() * 900000000,
-        )} AT ${accountInfo.branchCode} ${accountInfo.branchName}`
+    tx.hideBranchDetails
+      ? ` `
       : ` 009${Math.floor(
           100000000 + Math.random() * 900000000,
         )} AT ${accountInfo.branchCode} ${accountInfo.branchName}`

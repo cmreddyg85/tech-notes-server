@@ -3882,7 +3882,8 @@ function generateSbiTransactions(options = {}) {
     accountInfo = {},
     numberOfCreditsTransactions = DEFAULT_NUMBER_OF_CREDITS_TRANSACTIONS,
     numberOfDebitsTransactions = DEFAULT_NUMBER_OF_DEBITS_TRANSACTIONS,
-    balanceBeforeFromDate: balanceBeforeFromDateInput = DEFAULT_BALANCE_BEFORE_FROM_DATE,
+    balanceBeforeFromDate:
+      balanceBeforeFromDateInput = DEFAULT_BALANCE_BEFORE_FROM_DATE,
     balanceAfterToDate: balanceAfterToDateInput = DEFAULT_BALANCE_AFTER_TO_DATE,
     salaryDay = DEFAULT_SALARY_DAY,
     nextWorkingDay = DEFAULT_NEXT_WORKING_DAY,
@@ -4156,7 +4157,8 @@ function generateSbiTransactions(options = {}) {
 
         transactions.push({
           Date: formatTransactionDate(interestBaseDate),
-          Narration: "CREDIT INTEREST--",
+          Narration: "INTEREST CREDIT",
+          hideBranchDetails: true,
           Ref: "",
           Debit: "",
           Credit: interestAmount,
